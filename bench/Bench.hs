@@ -34,4 +34,4 @@ buildURL times = runBufferWriter $ do
         appendBS "hashyhashyhashy"
 
 main :: IO ()
-main = defaultMain [ bench "buildURL" $ whnf buildURL 10 ]
+main = defaultMain [ bench "buildURL" $ nf buildURL 10 ]
