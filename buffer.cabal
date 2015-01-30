@@ -15,6 +15,7 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
+  ghc-options: -O2 -Wall
   exposed-modules:
     Data.BufferWriter
 
@@ -28,6 +29,7 @@ test-suite tests
   type: exitcode-stdio-1.0
   main-is: Main.hs
   hs-source-dirs: . test
+  ghc-options: -O2 -Wall
 
   build-depends: base ==4.6.*
                , bytestring
@@ -36,3 +38,14 @@ test-suite tests
                , tasty-hunit
                , tasty-th
                , HUnit
+
+benchmark bench
+  type: exitcode-stdio-1.0
+  main-is: Bench.hs
+  hs-source-dirs: . bench
+  ghc-options: -O2 -Wall
+
+  build-depends: base ==4.6.*
+               , criterion
+               , mtl
+               , bytestring
