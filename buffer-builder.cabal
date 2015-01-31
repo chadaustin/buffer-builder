@@ -1,6 +1,40 @@
 name:                buffer-builder
 version:             0.1.0.0
 synopsis:            Library for efficiently building up buffers, one piece at a time
+description:
+
+    'BufferBuilder' is an efficient library for incrementally building
+    up 'ByteString's, one chunk at a time.  Early benchmarks show it
+    is over twice as fast as ByteString Builder, primarily because
+    'BufferBuilder' is built upon an ST-style restricted monad and
+    mutable state instead of ByteString Builder's monoidal AST.
+    .
+    Internally, BufferBuilder is backed by a few C functions.
+    Examination of GHC's output shows nearly optimal code generation
+    with no intermediate thunks -- and thus, continuation passing and
+    its associated indirect jumps and stack traffic only occur when
+    BufferBuilder is asked to append a non-strict ByteString.
+    .
+    I benchmarked four major implementations and benchmarked with the buildURL benchmark:
+    .
+      * State monad, concatenating ByteStrings: __6.98 us__
+    .
+      * State monad, ByteString Builder: __2.48 us__
+    .
+      * Crazy explicit RealWorld baton passing with unboxed state: __28.94 us__ (GHC generated really awful code for this, but see the revision history for the technique)
+    .
+      * C + FFI + ReaderT: __1.11 us__
+    .
+    Using BufferBuilder is very simple:
+    .
+    > import qualified Data.BufferBuilder as BB
+    > 
+    > let byteString = BB.runBufferBuilder $ do
+    >       BB.appendBS "http"
+    >       BB.appendChar8 '/'
+    >       BB.appendBS "//"
+    
+
 license:             BSD3
 license-file:        LICENSE
 author:              Chad Austin
@@ -13,18 +47,18 @@ homepage:            https://github.com/chadaustin/buffer-builder
 cabal-version:       >=1.10
 
 library
-  ghc-options: -O2 -Wall
-
-  c-sources: buffer.cpp
-  cc-options: -O2 -Wall
-
   exposed-modules:
     Data.BufferBuilder
-  default-language: Haskell2010
 
   build-depends: base ==4.*
                , bytestring
                , mtl
+
+  default-language: Haskell2010
+  ghc-options: -O2 -Wall
+
+  c-sources: buffer.cpp
+  cc-options: -O2 -Wall
 
 test-suite tests
   type: exitcode-stdio-1.0
@@ -32,9 +66,6 @@ test-suite tests
   hs-source-dirs: test
   default-language: Haskell2010
   ghc-options: -O2 -Wall
-
-  c-sources: buffer.cpp
-  cc-options: -O2 -Wall
 
   build-depends: base ==4.*
                , buffer-builder
@@ -47,10 +78,8 @@ benchmark bench
   type: exitcode-stdio-1.0
   main-is: Bench.hs
   hs-source-dirs: bench
-  ghc-options: -O2 -Wall -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
   default-language: Haskell2010
-  c-sources: buffer.cpp
-  cc-options: -O2 -Wall
+  ghc-options: -O2 -Wall -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
 
   build-depends: base ==4.*
                , bytestring

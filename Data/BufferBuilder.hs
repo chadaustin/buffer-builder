@@ -29,6 +29,9 @@ foreign import ccall unsafe "bw_append_bs" bw_append_bs :: BWHandle -> Int -> (P
 foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
 foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: BWHandle -> IO (Ptr Word8)
 
+-- | BufferBuilder sequences actions that append to an implicit,
+-- growable buffer.  Use 'runBufferBuilder' to extract the resulting
+-- buffer as a 'BS.ByteString'
 newtype BufferBuilder a = BB (ReaderT BWHandle IO a)
     deriving (Functor, Monad, MonadReader BWHandle)
 
@@ -41,6 +44,7 @@ initialCapacity = 48
 -- some quantitative analysis would be good.
 -- an option to set the initial capacity would be better. :)
 
+-- | Runs a BufferBuilder and extracts its resulting contents as a 'BS.ByteString'
 runBufferBuilder :: BufferBuilder () -> BS.ByteString
 runBufferBuilder = unsafeDupablePerformIO . runBufferBuilderIO initialCapacity
 
@@ -57,7 +61,9 @@ runBufferBuilderIO !capacity !(BB bw) = do
     touchForeignPtr handleFP
     return bs
 
-appendByte :: Word8 -> BufferBuilder ()
+
+appendByte :: Word8 -- ^ byte to append to the buffer.
+           -> BufferBuilder ()
 appendByte b = do
     h <- ask
     inBW $ bw_append_byte h b
@@ -67,10 +73,15 @@ c2w :: Char -> Word8
 c2w = fromIntegral . ord
 {-# INLINE c2w #-}
 
-appendChar8 :: Char -> BufferBuilder ()
+-- | Appends a character to the buffer, truncating it to the bottom 8 bits.
+appendChar8 :: Char -- ^ character to append to the buffer
+            -> BufferBuilder ()
 appendChar8 = appendByte . c2w
+{-# INLINE appendChar8 #-}
 
-appendBS :: BS.ByteString -> BufferBuilder ()
+-- | Appends a ByteString to the buffer.
+appendBS :: BS.ByteString -- ^ 'BS.ByteString' to append
+         -> BufferBuilder ()
 appendBS !(BS.PS (ForeignPtr addr _) offset len) = do
     h <- ask
     inBW $ bw_append_bs h len (plusPtr (Ptr addr) offset)
