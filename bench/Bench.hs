@@ -17,6 +17,12 @@ path = "the/path/goes/here"
 buildURL :: Int -> ByteString
 buildURL times = runBufferBuilder $ do
     replicateM_ times $ do
+        -- Sadly, if you look at the generated code, there are many
+        -- continuations (thus indirect jumps, thus inefficient stack
+        -- traffic) here.  Even though the test strings are constant,
+        -- they become ByteString CAFs, and are tag-checked on every
+        -- use.  However, appendBS followed by appendChar8 are folded
+        -- into the same generated function.
         appendBS scheme
         appendBS "://"
         appendBS host
@@ -44,6 +50,12 @@ data Record = Record
 
 encodeType :: Record -> ByteString
 encodeType !(Record{..}) = runBufferBuilder $ do
+    -- Because the record elements are strict, all of these appendBS
+    -- calls are emitted in one long Cmm/x86 function.  Can't do much
+    -- better than that.  :) However, if you look closely, the
+    -- BufferWriter handle (accessed through ReaderT) is reloaded from
+    -- the stack after all appendBS.  In the future, GHC could realize
+    -- it's always the same value and only load it once.
     appendBS f1
     appendBS f2
     appendBS f3
