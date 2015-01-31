@@ -33,7 +33,7 @@ foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_ad
 -- growable buffer.  Use 'runBufferBuilder' to extract the resulting
 -- buffer as a 'BS.ByteString'
 newtype BufferBuilder a = BB (ReaderT BWHandle IO a)
-    deriving (Functor, Monad, MonadReader BWHandle)
+    deriving (Functor, Applicative, Monad, MonadReader BWHandle)
 
 inBW :: IO a -> BufferBuilder a
 inBW = BB . lift
