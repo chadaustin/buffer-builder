@@ -1,7 +1,6 @@
 name:                buffer-builder
 version:             0.1.0.0
--- synopsis:            
--- description:         
+synopsis:            Library for efficiently building up buffers, one piece at a time
 license:             BSD3
 license-file:        LICENSE
 author:              Chad Austin
@@ -9,6 +8,8 @@ maintainer:          chad@chadaustin.me
 copyright:           IMVU Inc., Chad Austin
 category:            Data
 build-type:          Simple
+stability:           experimental
+homepage:            https://github.com/chadaustin/buffer-builder
 cabal-version:       >=1.10
 
 library
