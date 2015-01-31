@@ -8,7 +8,6 @@ module Data.BufferWriter
     , appendBS
     ) where
 
-import GHC.Prim
 import GHC.Base
 import GHC.Word
 import GHC.Ptr
@@ -17,7 +16,7 @@ import GHC.ForeignPtr
 import Foreign.ForeignPtr
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Internal as BS
-import Control.Monad.State.Strict
+import Control.Monad.Reader
 
 data BWHandle'
 type BWHandle = Ptr BWHandle'
@@ -29,7 +28,7 @@ foreign import ccall unsafe "bw_append_bs" bw_append_bs :: BWHandle -> Int -> (P
 foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
 foreign import ccall unsafe "bw_get_address" bw_get_address :: BWHandle -> IO (Ptr Word8)
 
-type BufferWriter a = (StateT BWHandle IO a)
+type BufferWriter a = (ReaderT BWHandle IO a)
 
 runBufferWriter :: BufferWriter () -> BS.ByteString
 runBufferWriter = unsafeDupablePerformIO . (runBufferWriterIO 16)
@@ -38,7 +37,7 @@ runBufferWriterIO :: Int -> BufferWriter () -> IO BS.ByteString
 runBufferWriterIO !initialCapacity !inner = do
     initial' <- bw_new initialCapacity
     initial <- newForeignPtr bw_free initial'
-    _ <- runStateT inner initial'
+    _ <- runReaderT inner initial'
     size <- bw_get_size initial'   
     src <- bw_get_address initial'
     rv <- BS.create size $ \dst ->
@@ -48,7 +47,7 @@ runBufferWriterIO !initialCapacity !inner = do
 
 appendByte :: Word8 -> BufferWriter ()
 appendByte b = do
-    h <- get
+    h <- ask
     lift $ bw_append_byte h b
 
 -- | Unsafe conversion between 'Char' and 'Word8'. This is a no-op and
@@ -64,5 +63,5 @@ appendChar8 = appendByte . c2w
 -- TODO: optimize
 appendBS :: BS.ByteString -> BufferWriter ()
 appendBS !(BS.PS (ForeignPtr addr _) offset len) = do
-    h <- get
+    h <- ask
     lift $ bw_append_bs h len (plusPtr (Ptr addr) offset)
