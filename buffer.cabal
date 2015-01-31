@@ -12,10 +12,10 @@ maintainer:          chad@chadaustin.me
 -- copyright:           
 category:            Data
 build-type:          Simple
-cabal-version:       >=1.8
+cabal-version:       >=1.10
 
 library
-  ghc-options: -O2 -Wall
+  ghc-options: -O2 -Wall -ddump-ds -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
   exposed-modules:
     Data.BufferWriter
   default-language: Haskell2010
@@ -47,7 +47,7 @@ benchmark bench
   type: exitcode-stdio-1.0
   main-is: Bench.hs
   hs-source-dirs: . bench
-  ghc-options: -O2 -Wall
+  ghc-options: -O2 -Wall -ddump-ds -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
   default-language: Haskell2010
 
   build-depends: base ==4.6.*

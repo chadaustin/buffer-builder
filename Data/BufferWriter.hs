@@ -30,6 +30,10 @@ instance Functor BufferWriter where
         (# new_s, n, r #) -> (# new_s, n, f r #)
  
 instance Monad BufferWriter where
+    {-# INLINE return #-}
+    {-# INLINE (>>) #-}
+    {-# INLINE (>>=) #-}
+
     return x = BW (\ (# s, n #) -> (# s, n, x #))
     m >> k = m >>= \ _ -> k
  
