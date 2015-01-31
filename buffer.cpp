@@ -1,7 +1,9 @@
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+const size_t TRIM_THRESHOLD = 8192; // minimum number of bytes saved to trim
 
 namespace {
     struct BufferWriter {
@@ -11,9 +13,11 @@ namespace {
     };
 }
 
-// assumes malloc cannot fail
+// assumes malloc will not fail
+// TODO: replace assert with some other error mechanism
 
 extern "C" BufferWriter* bw_new(size_t initialCapacity) {
+    assert(initialCapacity >= 1);
     BufferWriter* bw = reinterpret_cast<BufferWriter*>(malloc(sizeof(BufferWriter)));
     assert(bw);
     bw->data = reinterpret_cast<unsigned char*>(malloc(initialCapacity));
@@ -29,6 +33,7 @@ extern "C" void bw_free(BufferWriter* bw) {
 }
 
 extern "C" void bw_append_byte(BufferWriter* bw, unsigned char byte) {
+    assert(bw->data);
     if (bw->size >= bw->capacity) {
         size_t newCapacity = bw->capacity * 2;
         unsigned char* nd = reinterpret_cast<unsigned char*>(realloc(bw->data, newCapacity));
@@ -42,6 +47,7 @@ extern "C" void bw_append_byte(BufferWriter* bw, unsigned char byte) {
 }
 
 extern "C" void bw_append_bs(BufferWriter* bw, size_t size, unsigned char* data) {
+    assert(bw->data);
     if (bw->size + size > bw->capacity) {
         size_t newCapacity = bw->capacity * 2;
         while (bw->size + size > newCapacity) {
@@ -61,7 +67,19 @@ extern "C" size_t bw_get_size(BufferWriter* bw) {
     return bw->size;
 }
 
-extern "C" unsigned char* bw_get_address(BufferWriter* bw) {
-    return bw->data;
+extern "C" unsigned char* bw_trim_and_release_address(BufferWriter* bw) {
+    unsigned char* data = bw->data;
+    
+    if (bw->size + TRIM_THRESHOLD < bw->capacity) {
+        // try to shrink
+        data = reinterpret_cast<unsigned char*>(realloc(data, bw->size));
+        if (!data) {
+            // no problem
+            data = bw->data;
+        }
+    }
+
+    bw->data = 0;
+    return data;
 }
 

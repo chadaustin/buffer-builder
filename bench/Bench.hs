@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, BangPatterns, RecordWildCards #-}
 
 import Data.ByteString (ByteString)
 import Criterion.Main
@@ -33,5 +33,33 @@ buildURL times = runBufferWriter $ do
         appendChar8 '#'
         appendBS "hashyhashyhashy"
 
+data Record = Record
+              { f1 :: !ByteString
+              , f2 :: !ByteString
+              , f3 :: !ByteString
+              , f4 :: !ByteString
+              , f5 :: !ByteString
+              , f6 :: !ByteString
+              }
+
+encodeType :: Record -> ByteString
+encodeType !(Record{..}) = runBufferWriter $ do
+    appendBS f1
+    appendBS f2
+    appendBS f3
+    appendBS f4
+    appendBS f5
+    appendBS f6
+
+recordValue :: Record
+recordValue = Record { f1 = "the wheels on the bus go round and round"
+                     , f2 = "round and round, round and round"
+                     , f3 = "the seats on the bus go up and down"
+                     , f4 = "up and down, up and down"
+                     , f5 = "the doors on the bus go open and shut"
+                     , f6 = "open and shut, open and shut"
+                     }
+
 main :: IO ()
-main = defaultMain [ bench "buildURL" $ nf buildURL 10 ]
+main = defaultMain [ bench "buildURL" $ nf buildURL 10
+                   , bench "encodeRecord" $ nf encodeType recordValue ]

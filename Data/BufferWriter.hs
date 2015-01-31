@@ -14,6 +14,7 @@ import GHC.Ptr
 import GHC.IO
 import GHC.ForeignPtr
 import Foreign.ForeignPtr
+import Foreign.Marshal.Alloc
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Internal as BS
 import Control.Monad.Reader
@@ -26,7 +27,7 @@ foreign import ccall unsafe "&bw_free" bw_free :: FunPtr (BWHandle -> IO ())
 foreign import ccall unsafe "bw_append_byte" bw_append_byte :: BWHandle -> Word8 -> IO ()
 foreign import ccall unsafe "bw_append_bs" bw_append_bs :: BWHandle -> Int -> (Ptr Word8) -> IO ()
 foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
-foreign import ccall unsafe "bw_get_address" bw_get_address :: BWHandle -> IO (Ptr Word8)
+foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: BWHandle -> IO (Ptr Word8)
 
 newtype BufferWriter a = BW (ReaderT BWHandle IO a)
     deriving (Functor, Monad, MonadReader BWHandle)
@@ -38,19 +39,20 @@ inBW :: IO a -> BufferWriter a
 inBW = BW . lift
 
 runBufferWriter :: BufferWriter () -> BS.ByteString
-runBufferWriter = unsafeDupablePerformIO . (runBufferWriterIO 16)
+runBufferWriter = unsafeDupablePerformIO . (runBufferWriterIO 48)
 
 runBufferWriterIO :: Int -> BufferWriter () -> IO BS.ByteString
 runBufferWriterIO !initialCapacity !inner = do
-    initial' <- bw_new initialCapacity
-    initial <- newForeignPtr bw_free initial'
-    _ <- runReaderT (unBW inner) initial'
-    size <- bw_get_size initial'   
-    src <- bw_get_address initial'
-    rv <- BS.create size $ \dst ->
-        BS.memcpy dst src size
-    touchForeignPtr initial
-    return rv
+    handle <- bw_new initialCapacity
+    handleFP <- newForeignPtr bw_free handle
+    () <- runReaderT (unBW inner) handle
+    size <- bw_get_size handle
+    src <- bw_trim_and_release_address handle
+
+    borrowed <- newForeignPtr finalizerFree src
+    let bs = BS.fromForeignPtr borrowed 0 size
+    touchForeignPtr handleFP
+    return bs
 
 appendByte :: Word8 -> BufferWriter ()
 appendByte b = do
