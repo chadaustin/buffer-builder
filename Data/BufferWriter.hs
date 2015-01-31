@@ -32,20 +32,23 @@ foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_ad
 newtype BufferWriter a = BW (ReaderT BWHandle IO a)
     deriving (Functor, Monad, MonadReader BWHandle)
 
-unBW :: BufferWriter a -> ReaderT BWHandle IO a
-unBW (BW bw) = bw
-
 inBW :: IO a -> BufferWriter a
 inBW = BW . lift
 
+initialCapacity :: Int
+initialCapacity = 48
+-- why 48? it's only 6 64-bit words...  yet many small strings should fit.
+-- some quantitative analysis would be good.
+-- an option to set the initial capacity would be better. :)
+
 runBufferWriter :: BufferWriter () -> BS.ByteString
-runBufferWriter = unsafeDupablePerformIO . (runBufferWriterIO 48)
+runBufferWriter = unsafeDupablePerformIO . runBufferWriterIO initialCapacity
 
 runBufferWriterIO :: Int -> BufferWriter () -> IO BS.ByteString
-runBufferWriterIO !initialCapacity !inner = do
-    handle <- bw_new initialCapacity
+runBufferWriterIO !capacity !(BW bw) = do
+    handle <- bw_new capacity
     handleFP <- newForeignPtr bw_free handle
-    () <- runReaderT (unBW inner) handle
+    () <- runReaderT bw handle
     size <- bw_get_size handle
     src <- bw_trim_and_release_address handle
 
@@ -58,10 +61,8 @@ appendByte :: Word8 -> BufferWriter ()
 appendByte b = do
     h <- ask
     inBW $ bw_append_byte h b
+{-# INLINE appendByte #-}
 
--- | Unsafe conversion between 'Char' and 'Word8'. This is a no-op and
--- silently truncates to 8 bits Chars > '\255'. It is provided as
--- convenience for ByteString construction.
 c2w :: Char -> Word8
 c2w = fromIntegral . ord
 {-# INLINE c2w #-}
@@ -69,8 +70,9 @@ c2w = fromIntegral . ord
 appendChar8 :: Char -> BufferWriter ()
 appendChar8 = appendByte . c2w
 
--- TODO: optimize
 appendBS :: BS.ByteString -> BufferWriter ()
 appendBS !(BS.PS (ForeignPtr addr _) offset len) = do
     h <- ask
     inBW $ bw_append_bs h len (plusPtr (Ptr addr) offset)
+{-# INLINE appendBS #-}
+
