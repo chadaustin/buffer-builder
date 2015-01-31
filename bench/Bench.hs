@@ -2,7 +2,7 @@
 
 import Data.ByteString (ByteString)
 import Criterion.Main
-import Data.BufferWriter
+import Data.BufferBuilder
 import Control.Monad
 
 scheme :: ByteString
@@ -15,7 +15,7 @@ path :: ByteString
 path = "the/path/goes/here"
 
 buildURL :: Int -> ByteString
-buildURL times = runBufferWriter $ do
+buildURL times = runBufferBuilder $ do
     replicateM_ times $ do
         appendBS scheme
         appendBS "://"
@@ -43,7 +43,7 @@ data Record = Record
               }
 
 encodeType :: Record -> ByteString
-encodeType !(Record{..}) = runBufferWriter $ do
+encodeType !(Record{..}) = runBufferBuilder $ do
     appendBS f1
     appendBS f2
     appendBS f3

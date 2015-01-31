@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings, MagicHash, UnboxedTuples, BangPatterns, GeneralizedNewtypeDeriving #-}
 
-module Data.BufferWriter
-    ( BufferWriter
-    , runBufferWriter
+module Data.BufferBuilder
+    ( BufferBuilder
+    , runBufferBuilder
     , appendByte
     , appendChar8
     , appendBS
@@ -29,11 +29,11 @@ foreign import ccall unsafe "bw_append_bs" bw_append_bs :: BWHandle -> Int -> (P
 foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
 foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: BWHandle -> IO (Ptr Word8)
 
-newtype BufferWriter a = BW (ReaderT BWHandle IO a)
+newtype BufferBuilder a = BB (ReaderT BWHandle IO a)
     deriving (Functor, Monad, MonadReader BWHandle)
 
-inBW :: IO a -> BufferWriter a
-inBW = BW . lift
+inBW :: IO a -> BufferBuilder a
+inBW = BB . lift
 
 initialCapacity :: Int
 initialCapacity = 48
@@ -41,11 +41,11 @@ initialCapacity = 48
 -- some quantitative analysis would be good.
 -- an option to set the initial capacity would be better. :)
 
-runBufferWriter :: BufferWriter () -> BS.ByteString
-runBufferWriter = unsafeDupablePerformIO . runBufferWriterIO initialCapacity
+runBufferBuilder :: BufferBuilder () -> BS.ByteString
+runBufferBuilder = unsafeDupablePerformIO . runBufferBuilderIO initialCapacity
 
-runBufferWriterIO :: Int -> BufferWriter () -> IO BS.ByteString
-runBufferWriterIO !capacity !(BW bw) = do
+runBufferBuilderIO :: Int -> BufferBuilder () -> IO BS.ByteString
+runBufferBuilderIO !capacity !(BB bw) = do
     handle <- bw_new capacity
     handleFP <- newForeignPtr bw_free handle
     () <- runReaderT bw handle
@@ -57,7 +57,7 @@ runBufferWriterIO !capacity !(BW bw) = do
     touchForeignPtr handleFP
     return bs
 
-appendByte :: Word8 -> BufferWriter ()
+appendByte :: Word8 -> BufferBuilder ()
 appendByte b = do
     h <- ask
     inBW $ bw_append_byte h b
@@ -67,10 +67,10 @@ c2w :: Char -> Word8
 c2w = fromIntegral . ord
 {-# INLINE c2w #-}
 
-appendChar8 :: Char -> BufferWriter ()
+appendChar8 :: Char -> BufferBuilder ()
 appendChar8 = appendByte . c2w
 
-appendBS :: BS.ByteString -> BufferWriter ()
+appendBS :: BS.ByteString -> BufferBuilder ()
 appendBS !(BS.PS (ForeignPtr addr _) offset len) = do
     h <- ask
     inBW $ bw_append_bs h len (plusPtr (Ptr addr) offset)
