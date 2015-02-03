@@ -7,6 +7,7 @@ module Data.BufferBuilder
     , appendChar8
     , appendBS
     , appendLiteral
+    , appendLiteralN
     ) where
 
 import GHC.Base
@@ -95,3 +96,9 @@ appendLiteral addr = do
     h <- ask
     inBW $ bw_append_bsz h $ Ptr addr
 {-# INLINE appendLiteral #-}
+
+appendLiteralN :: Int -> Addr# -> BufferBuilder ()
+appendLiteralN len addr = do
+    h <- ask
+    inBW $ bw_append_bs h len $ Ptr addr
+{-# INLINE appendLiteralN #-}
