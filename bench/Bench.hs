@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, BangPatterns, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, BangPatterns, RecordWildCards, MagicHash #-}
 
 import Data.ByteString (ByteString)
 import Criterion.Main
@@ -39,6 +39,26 @@ buildURL times = runBufferBuilder $ do
         appendChar8 '#'
         appendBS "hashyhashyhashy"
 
+buildURLLiterals :: Int -> ByteString
+buildURLLiterals times = runBufferBuilder $ do
+    replicateM_ times $ do
+        -- literals avoid the CAFs for ByteString constants
+        appendLiteral "http"#
+        appendLiteral "://"#
+        appendLiteral "example.com"#
+        appendChar8 '/'
+        appendLiteral "the/path/goes/here"#
+        appendChar8 '?'
+        appendLiteral "key"#
+        appendChar8 '='
+        appendLiteral "value"#
+        appendChar8 '?'
+        appendLiteral "otherkey"#
+        appendChar8 '='
+        appendLiteral "othervalue"#
+        appendChar8 '#'
+        appendLiteral "hashyhashyhashy"#
+
 data Record = Record
               { f1 :: !ByteString
               , f2 :: !ByteString
@@ -74,4 +94,5 @@ recordValue = Record { f1 = "the wheels on the bus go round and round"
 
 main :: IO ()
 main = defaultMain [ bench "buildURL" $ nf buildURL 10
+                   , bench "buildURLLiterals" $ nf buildURLLiterals 10
                    , bench "encodeRecord" $ nf encodeType recordValue ]

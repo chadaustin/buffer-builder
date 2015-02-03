@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell, OverloadedStrings, MagicHash #-}
 
 import Test.Tasty
 import Test.Tasty.TH
@@ -20,6 +20,13 @@ case_append_string = do
             appendChar8 'o'
             appendChar8 'o'
             appendBS "bar"
+    assertEqual "matches" "foobar" result
+
+case_append_literals :: Assertion
+case_append_literals = do
+    let result = runBufferBuilder $ do
+            appendLiteral "foo"#
+            appendLiteral "bar"#
     assertEqual "matches" "foobar" result
 
 tests :: TestTree

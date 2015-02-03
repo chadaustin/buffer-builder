@@ -46,7 +46,7 @@ extern "C" void bw_append_byte(BufferWriter* bw, unsigned char byte) {
     bw->size += 1;
 }
 
-extern "C" void bw_append_bs(BufferWriter* bw, size_t size, unsigned char* data) {
+extern "C" void bw_append_bs(BufferWriter* bw, size_t size, const unsigned char* data) {
     assert(bw->data);
     if (bw->size + size > bw->capacity) {
         size_t newCapacity = bw->capacity * 2;
@@ -61,6 +61,10 @@ extern "C" void bw_append_bs(BufferWriter* bw, size_t size, unsigned char* data)
 
     memcpy(bw->data + bw->size, data, size);
     bw->size += size;
+}
+
+extern "C" void bw_append_bsz(BufferWriter* bw, const unsigned char* data) {
+    bw_append_bs(bw, strlen(reinterpret_cast<const char*>(data)), data);
 }
 
 extern "C" size_t bw_get_size(BufferWriter* bw) {

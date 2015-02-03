@@ -6,6 +6,7 @@ module Data.BufferBuilder
     , appendByte
     , appendChar8
     , appendBS
+    , appendLiteral
     ) where
 
 import GHC.Base
@@ -18,6 +19,7 @@ import Foreign.Marshal.Alloc
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Internal as BS
 import Control.Monad.Reader
+import Control.Applicative (Applicative)
 
 data BWHandle'
 type BWHandle = Ptr BWHandle'
@@ -25,7 +27,8 @@ type BWHandle = Ptr BWHandle'
 foreign import ccall unsafe "bw_new" bw_new :: Int -> IO BWHandle
 foreign import ccall unsafe "&bw_free" bw_free :: FunPtr (BWHandle -> IO ())
 foreign import ccall unsafe "bw_append_byte" bw_append_byte :: BWHandle -> Word8 -> IO ()
-foreign import ccall unsafe "bw_append_bs" bw_append_bs :: BWHandle -> Int -> (Ptr Word8) -> IO ()
+foreign import ccall unsafe "bw_append_bs" bw_append_bs :: BWHandle -> Int -> Ptr Word8 -> IO ()
+foreign import ccall unsafe "bw_append_bsz" bw_append_bsz :: BWHandle -> Ptr Word8 -> IO ()
 foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
 foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: BWHandle -> IO (Ptr Word8)
 
@@ -87,3 +90,8 @@ appendBS !(BS.PS (ForeignPtr addr _) offset len) = do
     inBW $ bw_append_bs h len (plusPtr (Ptr addr) offset)
 {-# INLINE appendBS #-}
 
+appendLiteral :: Addr# -> BufferBuilder ()
+appendLiteral addr = do
+    h <- ask
+    inBW $ bw_append_bsz h $ Ptr addr
+{-# INLINE appendLiteral #-}
