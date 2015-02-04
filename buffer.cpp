@@ -11,6 +11,19 @@ namespace {
         size_t size;
         size_t capacity;
     };
+
+    inline void grow(BufferWriter* bw, size_t amount) {
+        if (bw->size + amount > bw->capacity) {
+            size_t newCapacity = bw->capacity;
+            do {
+                newCapacity *= 2;
+            } while (newCapacity < bw->size + amount);
+            unsigned char* newData = reinterpret_cast<unsigned char*>(realloc(bw->data, newCapacity));
+            assert(newData);
+            bw->data = newData;
+            bw->capacity = newCapacity;
+        }
+    }
 }
 
 // assumes malloc will not fail
@@ -34,30 +47,14 @@ extern "C" void bw_free(BufferWriter* bw) {
 
 extern "C" void bw_append_byte(BufferWriter* bw, unsigned char byte) {
     assert(bw->data);
-    if (bw->size >= bw->capacity) {
-        size_t newCapacity = bw->capacity * 2;
-        unsigned char* nd = reinterpret_cast<unsigned char*>(realloc(bw->data, newCapacity));
-        assert(nd);
-        bw->data = nd;
-        bw->capacity = newCapacity;
-    }
-
+    grow(bw, 1);
     bw->data[bw->size] = byte;
     bw->size += 1;
 }
 
 extern "C" void bw_append_bs(BufferWriter* bw, size_t size, const unsigned char* data) {
     assert(bw->data);
-    if (bw->size + size > bw->capacity) {
-        size_t newCapacity = bw->capacity * 2;
-        while (bw->size + size > newCapacity) {
-            newCapacity *= 2;
-        }
-        unsigned char* nd = reinterpret_cast<unsigned char*>(realloc(bw->data, newCapacity));
-        assert(nd);
-        bw->data = nd;
-        bw->capacity = newCapacity;
-    }
+    grow(bw, size);
 
     memcpy(bw->data + bw->size, data, size);
     bw->size += size;
@@ -87,3 +84,26 @@ extern "C" unsigned char* bw_trim_and_release_address(BufferWriter* bw) {
     return data;
 }
 
+extern "C" void bw_append_json_escaped(BufferWriter* bw, size_t size, const unsigned char* data) {
+    assert(bw->data);
+    grow(bw, 2 + size * 2);
+
+    unsigned char* dest = bw->data;
+    *dest++ = '\"';
+
+    size_t i = 0;
+    while (i < size) {
+        switch (data[i]) {
+            case '\n': *dest++ = '\\'; *dest++ = 'r';  break;
+            case '\r': *dest++ = '\\'; *dest++ = 'n';  break;
+            case '\t': *dest++ = '\\'; *dest++ = 't';  break;
+            case '\\': *dest++ = '\\'; *dest++ = '\\'; break;
+            case '\"': *dest++ = '\\'; *dest++ = '\"'; break;
+            default:   *dest++ = data[i];
+        }
+        ++i;
+    }
+
+    *dest++ = '\"';
+    bw->size += dest - bw->data;
+}

@@ -8,6 +8,7 @@ module Data.BufferBuilder
     , appendBS
     , appendLiteral
     , appendLiteralN
+    , appendEscapedJson
     ) where
 
 import GHC.Base
@@ -32,6 +33,7 @@ foreign import ccall unsafe "bw_append_bs" bw_append_bs :: BWHandle -> Int -> Pt
 foreign import ccall unsafe "bw_append_bsz" bw_append_bsz :: BWHandle -> Ptr Word8 -> IO ()
 foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
 foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: BWHandle -> IO (Ptr Word8)
+foreign import ccall unsafe "bw_append_json_escaped" bw_append_json_escaped :: BWHandle -> Int -> Ptr Word8 -> IO ()
 
 -- | BufferBuilder sequences actions that append to an implicit,
 -- growable buffer.  Use 'runBufferBuilder' to extract the resulting
@@ -41,6 +43,12 @@ newtype BufferBuilder a = BB (ReaderT BWHandle IO a)
 
 inBW :: IO a -> BufferBuilder a
 inBW = BB . lift
+
+withHandle :: (BWHandle -> IO ()) -> BufferBuilder ()
+withHandle action = do
+    h <- ask
+    inBW $ action h
+{-# INLINE withHandle #-}
 
 initialCapacity :: Int
 initialCapacity = 48
@@ -68,9 +76,7 @@ runBufferBuilderIO !capacity !(BB bw) = do
 
 appendByte :: Word8 -- ^ byte to append to the buffer.
            -> BufferBuilder ()
-appendByte b = do
-    h <- ask
-    inBW $ bw_append_byte h b
+appendByte b = withHandle $ \h -> bw_append_byte h b
 {-# INLINE appendByte #-}
 
 c2w :: Char -> Word8
@@ -86,19 +92,25 @@ appendChar8 = appendByte . c2w
 -- | Appends a ByteString to the buffer.
 appendBS :: BS.ByteString -- ^ 'BS.ByteString' to append
          -> BufferBuilder ()
-appendBS !(BS.PS (ForeignPtr addr _) offset len) = do
-    h <- ask
-    inBW $ bw_append_bs h len (plusPtr (Ptr addr) offset)
+appendBS !(BS.PS (ForeignPtr addr _) offset len) =
+    withHandle $ \h ->
+        bw_append_bs h len (plusPtr (Ptr addr) offset)
 {-# INLINE appendBS #-}
 
 appendLiteral :: Addr# -> BufferBuilder ()
-appendLiteral addr = do
-    h <- ask
-    inBW $ bw_append_bsz h $ Ptr addr
+appendLiteral addr =
+    withHandle $ \h ->
+        bw_append_bsz h (Ptr addr)
 {-# INLINE appendLiteral #-}
 
 appendLiteralN :: Int -> Addr# -> BufferBuilder ()
-appendLiteralN len addr = do
-    h <- ask
-    inBW $ bw_append_bs h len $ Ptr addr
+appendLiteralN len addr = 
+    withHandle $ \h ->
+        bw_append_bs h len (Ptr addr)
 {-# INLINE appendLiteralN #-}
+
+appendEscapedJson :: BS.ByteString -> BufferBuilder ()
+appendEscapedJson !(BS.PS (ForeignPtr addr _) offset len) =
+    withHandle $ \h ->
+        bw_append_json_escaped h len (plusPtr (Ptr addr) offset)
+{-# INLINE appendEscapedJson #-}

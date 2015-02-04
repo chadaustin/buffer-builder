@@ -39,7 +39,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Chad Austin
 maintainer:          chad@chadaustin.me
-copyright:           IMVU Inc., Chad Austin
+copyright:           IMVU Inc., Chad Austin, Andy Friesen
 category:            Data
 build-type:          Simple
 stability:           experimental
@@ -49,10 +49,14 @@ cabal-version:       >=1.10
 library
   exposed-modules:
     Data.BufferBuilder
+    Data.BufferBuilder.Utf8
+    Data.BufferBuilder.Json
 
   build-depends: base ==4.*
                , bytestring
                , mtl
+               , semigroups
+               , text
 
   default-language: Haskell2010
   ghc-options: -O2 -Wall
@@ -85,3 +89,18 @@ benchmark bench
                , bytestring
                , buffer-builder
                , criterion
+
+benchmark json-bench
+  type: exitcode-stdio-1.0
+  main-is: JsonBench.hs
+  hs-source-dirs: bench
+  default-language: Haskell2010
+  ghc-options: -O2 -Wall -Werror
+  build-depends: base
+               , buffer-builder
+               , aeson
+               , bytestring
+               , text
+               , deepseq
+               , criterion
+               , semigroups
