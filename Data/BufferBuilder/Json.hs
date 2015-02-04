@@ -3,7 +3,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Data.BufferBuilder.Json
-    ( ToJson (..)
+    ( -- * JSON
+      -- $use
+      ToJson (..)
     , JsonBuilder
     , ObjectBuilder
     , encodeJson
@@ -22,6 +24,9 @@ import           Data.Text (Text)
 import qualified Data.Text.Encoding as DTE
 
 -- | Builds a JSON value.
+--
+-- 'JsonBuilder's are built up either with '.=' and 'Data.Semigroup.<>' or from other 'ToJson' instances.
+--
 newtype JsonBuilder   = JsonBuilder { unJsonBuilder :: Utf8Builder () }
 
 -- | Builds a JSON object.
@@ -59,9 +64,6 @@ encodeJson :: ToJson a => a -> ByteString
 encodeJson = runBuilder . appendJson
 
 -- | The class of types that can be converted to JSON.
---
--- 'JsonBuilder's are built up either with '.=' and 'Data.Semigroup.<>' or from other 'ToJson' instances.
---
 class ToJson a where
     appendJson :: a -> JsonBuilder
 

@@ -9,7 +9,8 @@ import Criterion.Main
 
 import Data.Semigroup ((<>))
 
-import qualified Data.ByteString as B
+import           Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 
 import qualified Data.BufferBuilder.Json as Json
@@ -18,7 +19,6 @@ import           Data.String (IsString)
 import qualified Data.Aeson as Aeson
 import           Data.Aeson ((.:))
 import           Control.DeepSeq (NFData (..), force)
-import qualified Data.ByteString as BS
 
 newtype Utf8 = Utf8 { unUtf8 :: BS.ByteString }
     deriving (Show, Eq, IsString)
@@ -235,7 +235,7 @@ assumeSuccess _ = error "assumeSuccess"
 
 main :: IO ()
 main = do
-    content <- B.readFile "test.json"
+    content <- BS.readFile "test.json"
     let lazyContent = force $ BSL.fromChunks [content]
 
     let parsedUserList :: [User Text]
