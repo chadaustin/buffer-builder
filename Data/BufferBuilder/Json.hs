@@ -2,7 +2,14 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.BufferBuilder.Json where
+module Data.BufferBuilder.Json
+    ( ToJson (..)
+    , JsonBuilder
+    , ObjectBuilder
+    , encodeJson
+    , emptyObject
+    , (.=)
+    ) where
 
 import           Data.BufferBuilder.Utf8 (Utf8Builder)
 import qualified Data.BufferBuilder.Utf8 as BB
@@ -14,16 +21,52 @@ import           Data.Semigroup
 import           Data.Text (Text)
 import qualified Data.Text.Encoding as DTE
 
+-- | Builds a JSON value.
 newtype JsonBuilder   = JsonBuilder { unJsonBuilder :: Utf8Builder () }
+
+-- | Builds a JSON object.
+--
+-- An 'ObjectBuilder' builds one or more key-value pairs of a JSON object.  They are constructed with the '.=' operator and
+-- combined with 'Data.Semigroup.<>'.
+--
+-- To turn an 'ObjectBuilder' into a 'JsonBuilder', use its 'ToJson' class instance.
+--
+-- @
+--     data Friend = Friend
+--         { fId :: !Int
+--         , fName :: !Text
+--         } deriving (Eq, Show)
+--
+--     instance ToJson Friend where
+--         appendJson friend = appendJson $
+--                    "id"   .= fId friend
+--                 <> "name" .= fName friend
+-- @
 newtype ObjectBuilder = ObjectBuilder { unObjectBuilder :: Utf8Builder () }
-newtype ArrayBuilder  = ArrayBuilder { unArrayBuilder :: Utf8Builder () }
 
+-- | Run a builder and get the resulting JSON.
+-- With this function, you can use 'JsonBuilders' that were not obtained by using the 'ToJson' typeclass.
+-- This is useful if you want to be able to JSON-encode the same data type in multiple ways.
+runBuilder :: JsonBuilder -> ByteString
+runBuilder = BB.runUtf8Builder . unJsonBuilder
+
+-- | Convert a datum to JSON.
+-- Eqivalent to
+-- @
+--     runBuilder . appendJson
+-- @
 encodeJson :: ToJson a => a -> ByteString
-encodeJson = BB.runUtf8Builder . unJsonBuilder . appendJson
+encodeJson = runBuilder . appendJson
 
+-- | The class of types that can be converted to JSON.
+--
+-- 'JsonBuilder's are built up either with '.=' and 'Data.Semigroup.<>' or from other 'ToJson' instances.
+--
 class ToJson a where
     appendJson :: a -> JsonBuilder
 
+-- | A 'JsonBuilder' that represents the empty object.
+-- 'JsonBuilder' is a 'Semigroup', but if it were a 'Data.Monoid.Monoid', this would be 'Data.Monoid.mempty'.
 emptyObject :: JsonBuilder
 emptyObject = JsonBuilder $ do
     BB.appendChar8 '{'
@@ -42,14 +85,11 @@ array collection = JsonBuilder $ do
                 unJsonBuilder $ appendJson el
     BB.appendChar8 ']'
 
--- FIXME
-appendQuote :: Text -> Utf8Builder ()
-appendQuote = BB.appendText
-
 appendQuotedString :: Text -> Utf8Builder ()
 appendQuotedString txt =
     BB.appendEscapedJson $ DTE.encodeUtf8 txt
 
+-- | Create an 'ObjectBuilder' from a key and a value.
 (.=) :: ToJson a => Text -> a -> ObjectBuilder
 a .= b = ObjectBuilder $ do
     appendQuotedString a
