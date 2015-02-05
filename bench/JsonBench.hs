@@ -28,33 +28,33 @@ data Gender = Male | Female
     deriving (Eq, Show)
 data Fruit = Apple | Strawberry | Banana
     deriving (Eq, Show)
-data Friend string = Friend
+data Friend = Friend
     { fId :: !Int
-    , fName :: !string
+    , fName :: !Text
     } deriving (Eq, Show)
 
-data User string = User
-    { uId       :: !string
+data User = User
+    { uId       :: !Text
     , uIndex    :: !Int
-    , uGuid     :: !string
+    , uGuid     :: !Text
     , uIsActive :: !Bool
-    , uBalance  :: !string
-    , uPicture  :: !string
+    , uBalance  :: !Text
+    , uPicture  :: !Text
     , uAge      :: !Int
     , uEyeColor :: !EyeColor
-    , uName     :: !string
+    , uName     :: !Text
     , uGender   :: !Gender
-    , uCompany  :: !string
-    , uEmail    :: !string
-    , uPhone    :: !string
-    , uAddress  :: !string
-    , uAbout    :: !string
-    , uRegistered   :: !string -- UTCTime?
+    , uCompany  :: !Text
+    , uEmail    :: !Text
+    , uPhone    :: !Text
+    , uAddress  :: !Text
+    , uAbout    :: !Text
+    , uRegistered   :: !Text -- UTCTime?
     , uLatitude :: !Double
     , uLongitude    :: !Double
     , uTags :: ![Text]
-    , uFriends  :: ![Friend string]
-    , uGreeting :: !string
+    , uFriends  :: ![Friend]
+    , uGreeting :: !Text
     , uFavouriteFruit   :: !Fruit
     } deriving (Eq, Show)
 
@@ -62,10 +62,10 @@ instance NFData EyeColor
 instance NFData Gender
 instance NFData Fruit
 
-instance NFData str => NFData (Friend str) where
+instance NFData Friend where
     rnf Friend {..} = (rnf fId) `seq` (rnf fName) `seq` ()
 
-instance NFData a => NFData (User a) where
+instance NFData User where
     rnf User {..} = (rnf uId) `seq` (rnf uIndex) `seq` (rnf uGuid) `seq` (rnf uIsActive) `seq` (rnf uBalance) `seq` (rnf uPicture) `seq` (rnf uAge) `seq` (rnf uEyeColor) `seq` (rnf uName) `seq` (rnf uGender) `seq` (rnf uCompany) `seq` (rnf uEmail) `seq` (rnf uPhone) `seq` (rnf uAddress) `seq` (rnf uAbout) `seq` (rnf uRegistered) `seq` (rnf uLatitude) `seq` (rnf uLongitude) `seq` (rnf uTags) `seq` (rnf uFriends) `seq` (rnf uGreeting) `seq` (rnf uFavouriteFruit) `seq` ()
 
 eyeColorTable :: [(Text, EyeColor)]
@@ -95,13 +95,13 @@ instance Aeson.FromJSON Gender where
 instance Aeson.FromJSON Fruit where
     parseJSON = enumFromJson "Fruit" fruitTable Aeson.parseJSON
 
-instance Aeson.FromJSON str => Aeson.FromJSON (Friend str) where
+instance Aeson.FromJSON Friend where
     parseJSON = Aeson.withObject "Friend" $ \o -> do
         fId <- o .: "id"
         fName <- o .: "name"
         return Friend {..}
 
-instance Aeson.FromJSON str => Aeson.FromJSON (User str) where
+instance Aeson.FromJSON User where
     parseJSON = Aeson.withObject "User" $ \o -> do
         uId <- o .: "_id"
         uIndex <- o .: "index"
@@ -144,13 +144,13 @@ instance Aeson.ToJSON Fruit where
         Banana -> "banana"
         Strawberry -> "strawberry"
 
-instance Aeson.ToJSON str => Aeson.ToJSON (Friend str) where
+instance Aeson.ToJSON Friend where
     toJSON Friend {..} = Aeson.object
         [ "id" Aeson..= fId
         , "name" Aeson..= fName
         ]
 
-instance Aeson.ToJSON str => Aeson.ToJSON (User str) where
+instance Aeson.ToJSON User where
     toJSON User{..} = Aeson.object
         [ "_id" Aeson..= uId
         , "index" Aeson..= uIndex
@@ -195,12 +195,12 @@ instance Json.ToJson Fruit where
         Strawberry -> "strawberry"
         Banana -> "banana"
 
-instance Json.ToJson str => Json.ToJson (Friend str) where
+instance Json.ToJson Friend where
     appendJson Friend{..} = Json.appendJson $
             "_id" Json..= fId
             <> "name" Json..= fName
 
-instance Json.ToJson str => Json.ToJson (User str) where
+instance Json.ToJson User where
     appendJson User{..} = Json.appendJson $
             "_id" Json..= uId
             <> "index" Json..= uIndex
@@ -237,7 +237,7 @@ main = do
     content <- BS.readFile "test.json"
     let lazyContent = force $ BSL.fromChunks [content]
 
-    let parsedUserList :: [User Text]
+    let parsedUserList :: [User]
         Just parsedUserList = Aeson.decode lazyContent
 
     defaultMain [ bgroup "render"

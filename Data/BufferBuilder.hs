@@ -9,6 +9,8 @@ module Data.BufferBuilder
     , appendLiteral
     , appendLiteralN
     , appendEscapedJson
+    , appendDecimalSignedInt
+    , appendDecimalDouble
     ) where
 
 import GHC.Base
@@ -34,6 +36,8 @@ foreign import ccall unsafe "bw_append_bsz" bw_append_bsz :: BWHandle -> Ptr Wor
 foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
 foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: BWHandle -> IO (Ptr Word8)
 foreign import ccall unsafe "bw_append_json_escaped" bw_append_json_escaped :: BWHandle -> Int -> Ptr Word8 -> IO ()
+foreign import ccall unsafe "bw_append_decimal_signed_int" bw_append_decimal_signed_int :: BWHandle -> Int -> IO ()
+foreign import ccall unsafe "bw_append_decimal_double" bw_append_decimal_double :: BWHandle -> Double -> IO ()
 
 -- | BufferBuilder sequences actions that append to an implicit,
 -- growable buffer.  Use 'runBufferBuilder' to extract the resulting
@@ -114,3 +118,15 @@ appendEscapedJson !(BS.PS (ForeignPtr addr _) offset len) =
     withHandle $ \h ->
         bw_append_json_escaped h len (plusPtr (Ptr addr) offset)
 {-# INLINE appendEscapedJson #-}
+
+appendDecimalSignedInt :: Int -> BufferBuilder ()
+appendDecimalSignedInt i =
+    withHandle $ \h ->
+        bw_append_decimal_signed_int h i
+{-# INLINE appendDecimalSignedInt #-}
+
+appendDecimalDouble :: Double -> BufferBuilder ()
+appendDecimalDouble d =
+    withHandle $ \h ->
+        bw_append_decimal_double h d
+{-# INLINE appendDecimalDouble #-}

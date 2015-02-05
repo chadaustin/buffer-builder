@@ -96,6 +96,22 @@ benchmark json-bench
   hs-source-dirs: bench
   default-language: Haskell2010
   ghc-options: -O2 -Wall -Werror
+  ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
+  build-depends: base
+               , buffer-builder
+               , aeson
+               , bytestring
+               , text
+               , deepseq
+               , criterion
+               , semigroups
+
+executable tinyjson
+  main-is: TinyJson.hs
+  hs-source-dirs: bench
+  default-language: Haskell2010
+  ghc-options: -O2 -Wall -Werror
+  ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
   build-depends: base
                , buffer-builder
                , aeson

@@ -88,7 +88,7 @@ extern "C" void bw_append_json_escaped(BufferWriter* bw, size_t size, const unsi
     assert(bw->data);
     grow(bw, 2 + size * 2);
 
-    unsigned char* dest = bw->data;
+    unsigned char* dest = bw->data + bw->size;
     *dest++ = '\"';
 
     size_t i = 0;
@@ -105,5 +105,21 @@ extern "C" void bw_append_json_escaped(BufferWriter* bw, size_t size, const unsi
     }
 
     *dest++ = '\"';
-    bw->size += dest - bw->data;
+    bw->size = dest - bw->data;
+}
+
+extern "C" void bw_append_decimal_signed_int(BufferWriter* bw, signed int i) {
+    assert(bw->data);
+    grow(bw, 22); // enough for a 64 bit MIN_INT
+
+    size_t used = sprintf(reinterpret_cast<char*>(bw->data + bw->size), "%i", i);
+    bw->size += used;
+}
+
+extern "C" void bw_append_decimal_double(BufferWriter* bw, double d) {
+    assert(bw->data);
+    grow(bw, 30); // ???
+
+    size_t used = sprintf(reinterpret_cast<char*>(bw->data + bw->size), "%f", d);
+    bw->size += used;
 }

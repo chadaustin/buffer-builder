@@ -87,11 +87,13 @@ array collection = JsonBuilder $ do
                 unJsonBuilder $ appendJson el
     BB.appendChar8 ']'
 
+{-# INLINE appendQuotedString #-}
 appendQuotedString :: Text -> Utf8Builder ()
 appendQuotedString txt =
     BB.appendEscapedJson $ DTE.encodeUtf8 txt
 
 -- | Create an 'ObjectBuilder' from a key and a value.
+{-# INLINE (.=) #-}
 (.=) :: ToJson a => Text -> a -> ObjectBuilder
 a .= b = ObjectBuilder $ do
     appendQuotedString a
@@ -100,6 +102,7 @@ a .= b = ObjectBuilder $ do
 infixr 8 .=
 
 instance Semigroup ObjectBuilder where
+    {-# INLINE (<>) #-}
     a <> b = ObjectBuilder $ do
         unObjectBuilder a
         BB.appendChar8 ','
@@ -122,9 +125,11 @@ instance ToJson a => ToJson (Maybe a) where
         Just a -> appendJson a
 
 instance ToJson a => ToJson [a] where
+    {-# INLINE appendJson #-}
     appendJson = array
 
 instance ToJson Text where
+    {-# INLINE appendJson #-}
     appendJson = JsonBuilder . appendQuotedString
 
 fromBuilder :: Builder.Builder -> JsonBuilder
@@ -132,7 +137,9 @@ fromBuilder builder = JsonBuilder $ BB.unsafeAppendBS $ BSL.toStrict $ Builder.t
 
 -- FIXME PERF
 instance ToJson Double where
-    appendJson d = fromBuilder $ Builder.doubleDec d
+    {-# INLINE appendJson #-}
+    appendJson a = JsonBuilder $ BB.appendDecimalDouble a
 
 instance ToJson Int where
-    appendJson d = fromBuilder $ Builder.intDec d
+    {-# INLINE appendJson #-}
+    appendJson a = JsonBuilder $ BB.appendDecimalSignedInt a
