@@ -109,6 +109,7 @@ instance Semigroup ObjectBuilder where
         unObjectBuilder b
 
 instance ToJson ObjectBuilder where
+    {-# INLINE appendJson #-}
     appendJson ob = JsonBuilder $ do
         BB.appendChar8 '{'
         unObjectBuilder ob
