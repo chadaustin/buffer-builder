@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 const size_t TRIM_THRESHOLD = 8192; // minimum number of bytes saved to trim
 
@@ -10,6 +11,14 @@ const size_t TRIM_THRESHOLD = 8192; // minimum number of bytes saved to trim
  * JSON encode utf8, ascii7, utf16
  */
 
+#if defined(__clang__)
+  #define BW_NOINLINE __attribute__((noinline))
+#elif defined(__GNUC__)
+  #define BW_NOINLINE __attribute__((noinline))
+#else
+  #define BW_NOINLINE
+#endif
+
 namespace {
     struct BufferWriter {
         unsigned char* data;
@@ -17,16 +26,21 @@ namespace {
         size_t capacity;
     };
 
+    BW_NOINLINE void actuallyGrow(BufferWriter* bw, size_t amount) {
+        size_t newCapacity = bw->capacity;
+        do {
+            newCapacity *= 2;
+        } while (newCapacity < bw->size + amount);
+        
+        unsigned char* newData = reinterpret_cast<unsigned char*>(realloc(bw->data, newCapacity));
+        assert(newData);
+        bw->data = newData;
+        bw->capacity = newCapacity;
+    }
+
     inline void grow(BufferWriter* bw, size_t amount) {
         if (bw->size + amount > bw->capacity) {
-            size_t newCapacity = bw->capacity;
-            do {
-                newCapacity *= 2;
-            } while (newCapacity < bw->size + amount);
-            unsigned char* newData = reinterpret_cast<unsigned char*>(realloc(bw->data, newCapacity));
-            assert(newData);
-            bw->data = newData;
-            bw->capacity = newCapacity;
+            actuallyGrow(bw, amount);
         }
     }
 }
@@ -55,6 +69,38 @@ extern "C" void bw_append_byte(BufferWriter* bw, unsigned char byte) {
     grow(bw, 1);
     bw->data[bw->size] = byte;
     bw->size += 1;
+}
+
+extern "C" void bw_append_char_utf8(BufferWriter* bw, uint32_t c) {
+    assert(bw->data);
+    grow(bw, 4);
+
+    size_t size = bw->size;
+    unsigned char* data = bw->data + size;
+
+    if (c <= 0x7F) {
+        data[0] = static_cast<unsigned char>(c);
+        size += 1;
+    } else if (c <= 0x7FF) {
+        data[0] = static_cast<unsigned char>(0xC0 | (c >> 6));
+        data[1] = static_cast<unsigned char>(0x80 | (c & 0x3F));
+        size += 2;
+    } else if (c <= 0xFFFF) {
+        data[0] = static_cast<unsigned char>(0xE0 | (c >> 12));
+        data[1] = static_cast<unsigned char>(0x80 | ((c >> 6) & 0x3F));
+        data[2] = static_cast<unsigned char>(0x80 | (c & 0x3F));
+        size += 3;
+    } else if (c <= 0x1FFFFF) {
+        data[0] = static_cast<unsigned char>(0xF0 | (c >> 18));
+        data[1] = static_cast<unsigned char>(0x80 | ((c >> 12) & 0x3F));
+        data[2] = static_cast<unsigned char>(0x80 | ((c >> 6) & 0x3F));
+        data[3] = static_cast<unsigned char>(0x80 | (c & 0x3F));
+        size += 4;
+    } else {
+        // Unicode characters out of this range are illegal...
+        // should we assert?  or just ignore...
+    }
+    bw->size = size;
 }
 
 extern "C" void bw_append_bs(BufferWriter* bw, size_t size, const unsigned char* data) {

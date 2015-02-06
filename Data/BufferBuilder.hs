@@ -5,6 +5,7 @@ module Data.BufferBuilder
     , runBufferBuilder
     , appendByte
     , appendChar8
+    , appendCharUtf8
     , appendBS
     , appendLiteral
     , appendLiteralN
@@ -38,6 +39,7 @@ foreign import ccall unsafe "strlen" c_strlen :: Ptr Word8 -> IO Int
 foreign import ccall unsafe "bw_new" bw_new :: Int -> IO BWHandle
 foreign import ccall unsafe "&bw_free" bw_free :: FunPtr (BWHandle -> IO ())
 foreign import ccall unsafe "bw_append_byte" bw_append_byte :: BWHandle -> Word8 -> IO ()
+foreign import ccall unsafe "bw_append_char_utf8" bw_append_char_utf8 :: BWHandle -> Char -> IO ()
 foreign import ccall unsafe "bw_append_bs" bw_append_bs :: BWHandle -> Int -> Ptr Word8 -> IO ()
 foreign import ccall unsafe "bw_append_bsz" bw_append_bsz :: BWHandle -> Ptr Word8 -> IO ()
 foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
@@ -100,6 +102,10 @@ appendChar8 :: Char -- ^ character to append to the buffer
             -> BufferBuilder ()
 appendChar8 = appendByte . c2w
 {-# INLINE appendChar8 #-}
+
+-- | Appends a UTF-8-encoded character to the buffer
+appendCharUtf8 :: Char -> BufferBuilder ()
+appendCharUtf8 c = withHandle $ \h -> bw_append_char_utf8 h c
 
 -- | Appends a ByteString to the buffer.
 appendBS :: BS.ByteString -- ^ 'BS.ByteString' to append
