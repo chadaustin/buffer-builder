@@ -10,6 +10,7 @@ module Data.BufferBuilder.Json
     , JsonBuilder
     , ObjectBuilder
     , encodeJson
+    , runBuilder
     , emptyObject
     , (.=)
     , (.=#)

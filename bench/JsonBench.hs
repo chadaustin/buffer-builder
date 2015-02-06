@@ -226,6 +226,31 @@ instance Json.ToJson User where
             <> "greeting"# Json..=# uGreeting
             <> "favoriteFruit"# Json..=# uFavouriteFruit
 
+encodeUserNaively :: User -> Json.JsonBuilder
+encodeUserNaively User{..} =
+    Json.appendJson $
+        "_id" Json..= uId
+        <> "index" Json..= uIndex
+        <> "guid" Json..= uGuid
+        <> "isActive" Json..= uIsActive
+        <> "balance" Json..= uBalance
+        <> "picture" Json..= uPicture
+        <> "age" Json..= uAge
+        <> "eyeColor" Json..= uEyeColor
+        <> "name" Json..= uName
+        <> "gender" Json..= uGender
+        <> "company" Json..= uCompany
+        <> "email" Json..= uEmail
+        <> "phone" Json..= uPhone
+        <> "address" Json..= uAddress
+        <> "about" Json..= uAbout
+        <> "registered" Json..= uRegistered
+        <> "latitude" Json..= uLatitude
+        <> "longitude" Json..= uLongitude
+        <> "tags" Json..= uTags
+        <> "friends" Json..= uFriends
+        <> "greeting" Json..= uGreeting
+        <> "favoriteFruit" Json..= uFavouriteFruit
 
 --- ---
 
@@ -244,5 +269,9 @@ main = do
     defaultMain [ bgroup "render"
                     [ bench "bufferbuilder" $ nf Json.encodeJson parsedUserList
                     , bench "aeson" $ nf Aeson.encode parsedUserList
+                    ]
+                , bgroup "addr vs text"
+                    [ bench "bufferbuilder-text" $ nf (fmap (Json.runBuilder . Json.appendJson)) parsedUserList
+                    , bench "bufferbuilder-addr" $ nf (fmap (Json.runBuilder . encodeUserNaively)) parsedUserList
                     ]
                 ]
