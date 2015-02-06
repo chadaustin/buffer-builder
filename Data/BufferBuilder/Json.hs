@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MagicHash #-}
 
 module Data.BufferBuilder.Json
     ( -- * JSON
@@ -11,8 +12,11 @@ module Data.BufferBuilder.Json
     , encodeJson
     , emptyObject
     , (.=)
+    , (.=#)
+    , pair
     ) where
 
+import           GHC.Base
 import           Data.BufferBuilder.Utf8 (Utf8Builder)
 import qualified Data.BufferBuilder.Utf8 as BB
 import           Data.ByteString (ByteString)
@@ -96,11 +100,23 @@ appendQuotedString txt =
 {-# INLINE (.=) #-}
 (.=) :: ToJson a => Text -> a -> ObjectBuilder
 a .= b = ObjectBuilder $ do
-    -- BB.appendEscapedJsonText a
-    appendQuotedString a
+    BB.appendEscapedJsonText a
     BB.appendChar8 ':'
     unJsonBuilder $ appendJson b
 infixr 8 .=
+
+{-# INLINE (.=#) #-}
+(.=#) :: ToJson a => Addr# -> a -> ObjectBuilder
+a .=# b = ObjectBuilder $ do
+    BB.appendEscapedJsonLiteral a
+    BB.appendChar8 ':'
+    unJsonBuilder $ appendJson b
+
+-- | Wordy alias to '.='.
+{-# INLINE pair #-}
+pair :: ToJson a => Text -> a -> ObjectBuilder
+pair = (.=)
+infixr 8 `pair`
 
 instance Semigroup ObjectBuilder where
     {-# INLINE (<>) #-}

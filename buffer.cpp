@@ -5,6 +5,11 @@
 
 const size_t TRIM_THRESHOLD = 8192; // minimum number of bytes saved to trim
 
+/*
+ * Append utf8, ASCII7, raw bytes, utf16
+ * JSON encode utf8, ascii7, utf16
+ */
+
 namespace {
     struct BufferWriter {
         unsigned char* data;

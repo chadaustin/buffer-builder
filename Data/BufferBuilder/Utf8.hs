@@ -1,7 +1,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MagicHash #-}
 
 module Data.BufferBuilder.Utf8 where
 
+import           GHC.Base
 import           Control.Applicative
 import           Data.ByteString (ByteString)
 import           Data.BufferBuilder (BufferBuilder)
@@ -23,6 +25,9 @@ runUtf8Builder :: Utf8Builder () -> ByteString
 runUtf8Builder a = BB.runBufferBuilder $ unBuilder a
 {-# INLINE runUtf8Builder #-}
 
+unsafeAppendLiteral :: Addr# -> Utf8Builder ()
+unsafeAppendLiteral addr = Utf8Builder $ BB.appendLiteral addr
+
 unsafeAppendBS :: ByteString -> Utf8Builder ()
 unsafeAppendBS a = Utf8Builder $ BB.appendBS a
 {-# INLINE unsafeAppendBS #-}
@@ -34,6 +39,9 @@ appendText a = Utf8Builder $ BB.appendBS $ encodeUtf8 a
 appendChar8 :: Char -> Utf8Builder ()
 appendChar8 a = Utf8Builder $ BB.appendChar8 a
 {-# INLINE appendChar8 #-}
+
+appendEscapedJsonLiteral :: Addr# -> Utf8Builder ()
+appendEscapedJsonLiteral addr = Utf8Builder $ BB.appendEscapedJsonLiteral addr
 
 appendEscapedJson :: ByteString -> Utf8Builder ()
 appendEscapedJson a = Utf8Builder $ BB.appendEscapedJson a

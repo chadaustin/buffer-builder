@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MagicHash #-}
 
 module Main where
 
@@ -202,28 +203,28 @@ instance Json.ToJson Friend where
 
 instance Json.ToJson User where
     appendJson User{..} = Json.appendJson $
-            "_id" Json..= uId
-            <> "index" Json..= uIndex
-            <> "guid" Json..= uGuid
-            <> "isActive" Json..= uIsActive
-            <> "balance" Json..= uBalance
-            <> "picture" Json..= uPicture
-            <> "age" Json..= uAge
-            <> "eyeColor" Json..= uEyeColor
-            <> "name" Json..= uName
-            <> "gender" Json..= uGender
-            <> "company" Json..= uCompany
-            <> "email" Json..= uEmail
-            <> "phone" Json..= uPhone
-            <> "address" Json..= uAddress
-            <> "about" Json..= uAbout
-            <> "registered" Json..= uRegistered
-            <> "latitude" Json..= uLatitude
-            <> "longitude" Json..= uLongitude
-            <> "tags" Json..= uTags
-            <> "friends" Json..= uFriends
-            <> "greeting" Json..= uGreeting
-            <> "favoriteFruit" Json..= uFavouriteFruit
+            "_id"# Json..=# uId
+            <> "index"# Json..=# uIndex
+            <> "guid"# Json..=# uGuid
+            <> "isActive"# Json..=# uIsActive
+            <> "balance"# Json..=# uBalance
+            <> "picture"# Json..=# uPicture
+            <> "age"# Json..=# uAge
+            <> "eyeColor"# Json..=# uEyeColor
+            <> "name"# Json..=# uName
+            <> "gender"# Json..=# uGender
+            <> "company"# Json..=# uCompany
+            <> "email"# Json..=# uEmail
+            <> "phone"# Json..=# uPhone
+            <> "address"# Json..=# uAddress
+            <> "about"# Json..=# uAbout
+            <> "registered"# Json..=# uRegistered
+            <> "latitude"# Json..=# uLatitude
+            <> "longitude"# Json..=# uLongitude
+            <> "tags"# Json..=# uTags
+            <> "friends"# Json..=# uFriends
+            <> "greeting"# Json..=# uGreeting
+            <> "favoriteFruit"# Json..=# uFavouriteFruit
 
 
 --- ---

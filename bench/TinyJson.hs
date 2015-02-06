@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE MagicHash #-}
 
 module Main where
 
@@ -15,7 +16,7 @@ data TinyRecord = TR
 
 instance ToJson TinyRecord where
     appendJson !TR{..} = appendJson $
-        "na\"me" .= (9::Int)
+        "name"# .=# (9::Int)
         -- <> "number" .= number
 
 a :: TinyRecord

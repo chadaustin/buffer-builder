@@ -9,6 +9,7 @@ module Data.BufferBuilder
     , appendLiteral
     , appendLiteralN
     , appendEscapedJson
+    , appendEscapedJsonLiteral
     , appendEscapedJsonText
     , appendDecimalSignedInt
     , appendDecimalDouble
@@ -33,6 +34,7 @@ import Data.Text.Array (Array (..))
 data BWHandle'
 type BWHandle = Ptr BWHandle'
 
+foreign import ccall unsafe "strlen" c_strlen :: Ptr Word8 -> IO Int
 foreign import ccall unsafe "bw_new" bw_new :: Int -> IO BWHandle
 foreign import ccall unsafe "&bw_free" bw_free :: FunPtr (BWHandle -> IO ())
 foreign import ccall unsafe "bw_append_byte" bw_append_byte :: BWHandle -> Word8 -> IO ()
@@ -125,18 +127,17 @@ appendEscapedJson !(BS.PS (ForeignPtr addr _) offset len) =
         bw_append_json_escaped h len (plusPtr (Ptr addr) offset)
 {-# INLINE appendEscapedJson #-}
 
+appendEscapedJsonLiteral :: Addr# -> BufferBuilder ()
+appendEscapedJsonLiteral addr =
+    withHandle $ \h -> do
+        len <- c_strlen (Ptr addr)
+        bw_append_json_escaped h len (Ptr addr)
+
 appendEscapedJsonText :: Text -> BufferBuilder ()
-appendEscapedJsonText !t@(Text !(Array byteArray) ofs len) =
-    let byteLen = 2 * len
-        !(I# ofs#) = ofs
-        !(I# byteLen#) = byteLen
-    in withHandle $ \h -> do
-        IO $ \world1 ->
-            case newPinnedByteArray# byteLen# world1 of
-                (# world2, ma #) -> case unsafeFreezeByteArray# ma world2 of
-                    (# world3, fa #) -> case copyByteArray# byteArray ofs# ma 0# byteLen# world3 of
-                        world4 -> case bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# fa)) of
-                            (IO action) -> action world4
+appendEscapedJsonText !(Text !(Array byteArray) ofs len) =
+    withHandle $ \h -> IO $ \world1 ->
+        case bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# byteArray) `plusPtr` ofs) of
+            (IO action) -> action world1
 {-# INLINE appendEscapedJsonText #-}
 
 appendDecimalSignedInt :: Int -> BufferBuilder ()
