@@ -7,6 +7,7 @@ module Data.BufferBuilder
     , appendChar8
     , appendCharUtf8
     , appendBS
+    , appendLBS
     , appendLiteral
     , appendLiteralN
     , appendEscapedJson
@@ -25,6 +26,7 @@ import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Internal as BS
+import qualified Data.ByteString.Lazy as BSL
 import Control.Monad.Reader
 import Control.Applicative (Applicative)
 
@@ -87,7 +89,6 @@ runBufferBuilderIO !capacity !(BB bw) = do
     touchForeignPtr handleFP
     return bs
 
-
 appendByte :: Word8 -- ^ byte to append to the buffer.
            -> BufferBuilder ()
 appendByte b = withHandle $ \h -> bw_append_byte h b
@@ -108,12 +109,15 @@ appendCharUtf8 :: Char -> BufferBuilder ()
 appendCharUtf8 c = withHandle $ \h -> bw_append_char_utf8 h c
 
 -- | Appends a ByteString to the buffer.
-appendBS :: BS.ByteString -- ^ 'BS.ByteString' to append
-         -> BufferBuilder ()
+appendBS :: BS.ByteString -> BufferBuilder ()
 appendBS !(BS.PS (ForeignPtr addr _) offset len) =
     withHandle $ \h ->
         bw_append_bs h len (plusPtr (Ptr addr) offset)
 {-# INLINE appendBS #-}
+
+-- | Appends a Lazy ByteString to the buffer.
+appendLBS :: BSL.ByteString -> BufferBuilder ()
+appendLBS lbs = mapM_ appendBS $ BSL.toChunks lbs
 
 appendLiteral :: Addr# -> BufferBuilder ()
 appendLiteral addr =
