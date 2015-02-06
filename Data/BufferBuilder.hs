@@ -135,9 +135,8 @@ appendEscapedJsonLiteral addr =
 
 appendEscapedJsonText :: Text -> BufferBuilder ()
 appendEscapedJsonText !(Text !(Array byteArray) ofs len) =
-    withHandle $ \h -> IO $ \world1 ->
-        case bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# byteArray) `plusPtr` ofs) of
-            (IO action) -> action world1
+    withHandle $ \h ->
+        bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# byteArray) `plusPtr` ofs)
 {-# INLINE appendEscapedJsonText #-}
 
 appendDecimalSignedInt :: Int -> BufferBuilder ()
