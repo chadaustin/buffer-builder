@@ -6,6 +6,7 @@ module Main where
 
 import Data.Text
 import Data.BufferBuilder.Json
+import qualified Data.ByteString.Char8 as BSC8
 
 data TinyRecord = TR
     { name :: !Text
@@ -14,7 +15,7 @@ data TinyRecord = TR
 
 instance ToJson TinyRecord where
     appendJson !TR{..} = appendJson $
-        "name" .= (9::Int)
+        "na\"me" .= (9::Int)
         -- <> "number" .= number
 
 a :: TinyRecord
@@ -23,4 +24,4 @@ a = TR "Bob" 9
 main :: IO ()
 main = do
     let !b = encodeJson a
-    putStrLn $ show b
+    putStrLn $ BSC8.unpack b

@@ -39,6 +39,10 @@ appendEscapedJson :: ByteString -> Utf8Builder ()
 appendEscapedJson a = Utf8Builder $ BB.appendEscapedJson a
 {-# INLINE appendEscapedJson #-}
 
+appendEscapedJsonText :: Text -> Utf8Builder ()
+appendEscapedJsonText txt = Utf8Builder $ BB.appendEscapedJsonText txt
+{-# INLINE appendEscapedJsonText #-}
+
 appendDecimalSignedInt :: Int -> Utf8Builder ()
 appendDecimalSignedInt a = Utf8Builder $ BB.appendDecimalSignedInt a
 {-# INLINE appendDecimalSignedInt #-}

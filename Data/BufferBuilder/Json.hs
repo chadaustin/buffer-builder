@@ -96,6 +96,7 @@ appendQuotedString txt =
 {-# INLINE (.=) #-}
 (.=) :: ToJson a => Text -> a -> ObjectBuilder
 a .= b = ObjectBuilder $ do
+    -- BB.appendEscapedJsonText a
     appendQuotedString a
     BB.appendChar8 ':'
     unJsonBuilder $ appendJson b
@@ -131,7 +132,7 @@ instance ToJson a => ToJson [a] where
 
 instance ToJson Text where
     {-# INLINE appendJson #-}
-    appendJson = JsonBuilder . appendQuotedString
+    appendJson txt = JsonBuilder $ BB.appendEscapedJsonText txt
 
 fromBuilder :: Builder.Builder -> JsonBuilder
 fromBuilder builder = JsonBuilder $ BB.unsafeAppendBS $ BSL.toStrict $ Builder.toLazyByteString builder

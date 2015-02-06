@@ -9,6 +9,7 @@ module Data.BufferBuilder
     , appendLiteral
     , appendLiteralN
     , appendEscapedJson
+    , appendEscapedJsonText
     , appendDecimalSignedInt
     , appendDecimalDouble
     ) where
@@ -25,6 +26,10 @@ import qualified Data.ByteString.Internal as BS
 import Control.Monad.Reader
 import Control.Applicative (Applicative)
 
+import Data.Text () -- Show
+import Data.Text.Internal (Text (..))
+import Data.Text.Array (Array (..))
+
 data BWHandle'
 type BWHandle = Ptr BWHandle'
 
@@ -36,6 +41,7 @@ foreign import ccall unsafe "bw_append_bsz" bw_append_bsz :: BWHandle -> Ptr Wor
 foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
 foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: BWHandle -> IO (Ptr Word8)
 foreign import ccall unsafe "bw_append_json_escaped" bw_append_json_escaped :: BWHandle -> Int -> Ptr Word8 -> IO ()
+foreign import ccall unsafe "bw_append_json_escaped_utf16" bw_append_json_escaped_utf16 :: BWHandle -> Int -> Ptr Word16 -> IO ()
 foreign import ccall unsafe "bw_append_decimal_signed_int" bw_append_decimal_signed_int :: BWHandle -> Int -> IO ()
 foreign import ccall unsafe "bw_append_decimal_double" bw_append_decimal_double :: BWHandle -> Double -> IO ()
 
@@ -118,6 +124,20 @@ appendEscapedJson !(BS.PS (ForeignPtr addr _) offset len) =
     withHandle $ \h ->
         bw_append_json_escaped h len (plusPtr (Ptr addr) offset)
 {-# INLINE appendEscapedJson #-}
+
+appendEscapedJsonText :: Text -> BufferBuilder ()
+appendEscapedJsonText !t@(Text !(Array byteArray) ofs len) =
+    let byteLen = 2 * len
+        !(I# ofs#) = ofs
+        !(I# byteLen#) = byteLen
+    in withHandle $ \h -> do
+        IO $ \world1 ->
+            case newPinnedByteArray# byteLen# world1 of
+                (# world2, ma #) -> case unsafeFreezeByteArray# ma world2 of
+                    (# world3, fa #) -> case copyByteArray# byteArray ofs# ma 0# byteLen# world3 of
+                        world4 -> case bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# fa)) of
+                            (IO action) -> action world4
+{-# INLINE appendEscapedJsonText #-}
 
 appendDecimalSignedInt :: Int -> BufferBuilder ()
 appendDecimalSignedInt i =
