@@ -40,12 +40,12 @@ type BWHandle = Ptr BWHandle'
 foreign import ccall unsafe "strlen" c_strlen :: Ptr Word8 -> IO Int
 foreign import ccall unsafe "bw_new" bw_new :: Int -> IO BWHandle
 foreign import ccall unsafe "&bw_free" bw_free :: FunPtr (BWHandle -> IO ())
+foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
+foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: BWHandle -> IO (Ptr Word8)
 foreign import ccall unsafe "bw_append_byte" bw_append_byte :: BWHandle -> Word8 -> IO ()
 foreign import ccall unsafe "bw_append_char_utf8" bw_append_char_utf8 :: BWHandle -> Char -> IO ()
 foreign import ccall unsafe "bw_append_bs" bw_append_bs :: BWHandle -> Int -> Ptr Word8 -> IO ()
 foreign import ccall unsafe "bw_append_bsz" bw_append_bsz :: BWHandle -> Ptr Word8 -> IO ()
-foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
-foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: BWHandle -> IO (Ptr Word8)
 foreign import ccall unsafe "bw_append_json_escaped" bw_append_json_escaped :: BWHandle -> Int -> Ptr Word8 -> IO ()
 foreign import ccall unsafe "bw_append_json_escaped_utf16" bw_append_json_escaped_utf16 :: BWHandle -> Int -> Ptr Word16 -> IO ()
 foreign import ccall unsafe "bw_append_decimal_signed_int" bw_append_decimal_signed_int :: BWHandle -> Int -> IO ()
