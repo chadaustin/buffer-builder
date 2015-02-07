@@ -145,8 +145,8 @@ extern "C" void bw_append_json_escaped(BufferWriter* bw, size_t size, const unsi
     size_t i = 0;
     while (i < size) {
         switch (data[i]) {
-            case '\n': *dest++ = '\\'; *dest++ = 'r';  break;
-            case '\r': *dest++ = '\\'; *dest++ = 'n';  break;
+            case '\n': *dest++ = '\\'; *dest++ = 'n';  break;
+            case '\r': *dest++ = '\\'; *dest++ = 'r';  break;
             case '\t': *dest++ = '\\'; *dest++ = 't';  break;
             case '\\': *dest++ = '\\'; *dest++ = '\\'; break;
             case '\"': *dest++ = '\\'; *dest++ = '\"'; break;

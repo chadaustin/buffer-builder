@@ -78,6 +78,7 @@ test-suite tests
                , tasty-hunit
                , tasty-th
                , HUnit
+               , text
 
 benchmark bench
   type: exitcode-stdio-1.0
