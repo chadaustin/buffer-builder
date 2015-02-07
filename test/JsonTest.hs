@@ -6,6 +6,7 @@ import Test.Tasty
 import Test.Tasty.TH
 import Test.Tasty.HUnit
 -- import Test.Tasty.QuickCheck
+import Data.Monoid ((<>), Monoid (mconcat, mempty))
 import Data.String (IsString (..))
 import Data.Text (Text)
 import Data.BufferBuilder.Json
@@ -29,6 +30,18 @@ case_encode_text = do
     ae "\"\"" (encodeJson ("" :: Text))
 
     ae "\"\\\"\\\\\\n\\r\\t\"" (encodeJson (fromString ['\"', '\\', '\n', '\r', '\t'] :: Text))
+
+case_encode_object = do
+    ae "{\"key\":\"value\"}" (encodeJson ("key" .= ("value" :: Text)))
+
+case_monoid_laws = do
+    let a = "key" .= ("value" :: Text)
+        b = "key2" .= (999 :: Int)
+        c = "key3" .= ([1,2,3] :: [Int])
+    assertEqual "Left identity" (encodeJson a) (encodeJson (mempty <> a))
+    assertEqual "Right identity" (encodeJson a) (encodeJson (a <> mempty))
+    assertEqual "Associativity" (encodeJson (a <> (b <> c))) (encodeJson ((a <> b) <> c))
+    assertEqual "mconcat" (encodeJson (mconcat [a, b, c])) (encodeJson (a <> b <> c))
 
 -- prop_is_same_as_aeson :: Aeson.Value -> Bool
 -- prop_is_same_as_aeson document =

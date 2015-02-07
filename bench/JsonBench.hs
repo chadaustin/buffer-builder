@@ -8,7 +8,7 @@ import Criterion
 
 import Criterion.Main
 
-import Data.Semigroup ((<>))
+import Data.Monoid ((<>))
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
