@@ -15,6 +15,7 @@ module Data.BufferBuilder.Json
     , (.=)
     , (.=#)
     , pair
+    , array
     ) where
 
 import           GHC.Base
