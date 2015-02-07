@@ -22,38 +22,15 @@ import           Control.Monad (when)
 import           Data.BufferBuilder.Utf8 (Utf8Builder)
 import qualified Data.BufferBuilder.Utf8 as BB
 import           Data.ByteString (ByteString)
-import           Data.Foldable (for_)
 import           Data.Monoid
 import           Data.Text (Text)
+import           Data.Foldable (Foldable, foldMap)
 
 -- | Builds a JSON value.
 --
 -- 'JsonBuilder's are built up either with '.=' and 'Data.Monoid.<>' or from other 'ToJson' instances.
 --
 newtype JsonBuilder = JsonBuilder { unJsonBuilder :: Utf8Builder () }
-
--- | Builds a JSON object.
---
--- An 'ObjectBuilder' builds one or more key-value pairs of a JSON object.  They are constructed with the '.=' operator and
--- combined with 'Data.Monoid.<>'.
---
--- To turn an 'ObjectBuilder' into a 'JsonBuilder', use its 'ToJson' class instance.
---
--- @
---     data Friend = Friend
---         { fId :: !Int
---         , fName :: !Text
---         } deriving (Eq, Show)
---
---     instance ToJson Friend where
---         appendJson friend = appendJson $
---                    "id"   .= fId friend
---                 <> "name" .= fName friend
--- @
-data ObjectBuilder = ObjectBuilder
-    { unObjectBuilder :: Utf8Builder ()
-    , needsComma :: !Int
-    }
 
 -- | Run a builder and get the resulting JSON.
 -- With this function, you can use 'JsonBuilders' that were not obtained by using the 'ToJson' typeclass.
@@ -78,19 +55,6 @@ emptyObject :: JsonBuilder
 emptyObject = JsonBuilder $ do
     BB.appendChar8 '{'
     BB.appendChar8 '}'
-
-array :: ToJson a => [a] -> JsonBuilder
-array collection = JsonBuilder $ do
-    BB.appendChar8 '['
-    case collection of
-        [] -> return ()
-        [x] -> unJsonBuilder $ appendJson x
-        x:xs -> do
-            unJsonBuilder $ appendJson x
-            for_ xs $ \el -> do
-                BB.appendChar8 ','
-                unJsonBuilder $ appendJson el
-    BB.appendChar8 ']'
 
 -- | Create an 'ObjectBuilder' from a key and a value.
 {-# INLINE (.=) #-}
@@ -118,6 +82,29 @@ pair :: ToJson a => Text -> a -> ObjectBuilder
 pair = (.=)
 infixr 8 `pair`
 
+-- | Builds a JSON object.
+--
+-- An 'ObjectBuilder' builds one or more key-value pairs of a JSON object.  They are constructed with the '.=' operator and
+-- combined with 'Data.Monoid.<>'.
+--
+-- To turn an 'ObjectBuilder' into a 'JsonBuilder', use its 'ToJson' class instance.
+--
+-- @
+--     data Friend = Friend
+--         { fId :: !Int
+--         , fName :: !Text
+--         } deriving (Eq, Show)
+--
+--     instance ToJson Friend where
+--         appendJson friend = appendJson $
+--                    "id"   .= fId friend
+--                 <> "name" .= fName friend
+-- @
+data ObjectBuilder = ObjectBuilder
+    { unObjectBuilder :: Utf8Builder ()
+    , needsComma :: !Int
+    }
+
 instance Monoid ObjectBuilder where
     {-# INLINE mempty #-}
     mempty = ObjectBuilder (return ()) 0
@@ -138,6 +125,14 @@ instance ToJson ObjectBuilder where
         unObjectBuilder ob
         BB.appendChar8 '}'
 
+-- | Serialize a 'Foldable' as a JSON array.
+array :: (Foldable t, ToJson a) => t a -> JsonBuilder
+array collection = JsonBuilder $ do
+    BB.appendChar8 '['
+    -- HACK: ObjectBuilder is not "type correct" but it has exactly the behaviour we want for this function.
+    unObjectBuilder $ foldMap (\e -> ObjectBuilder (unJsonBuilder $ appendJson e) 1) collection
+    BB.appendChar8 ']'
+
 instance ToJson Bool where
     appendJson b = JsonBuilder $ BB.unsafeAppendBS $ case b of
         True -> "true"
@@ -156,7 +151,6 @@ instance ToJson Text where
     {-# INLINE appendJson #-}
     appendJson txt = JsonBuilder $ BB.appendEscapedJsonText txt
 
--- FIXME PERF
 instance ToJson Double where
     {-# INLINE appendJson #-}
     appendJson a = JsonBuilder $ BB.appendDecimalDouble a
