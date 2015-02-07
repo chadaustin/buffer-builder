@@ -33,8 +33,11 @@ case_encode_text = do
 
 case_encode_object = do
     ae "{\"key\":\"value\"}" (encodeJson ("key" .= ("value" :: Text)))
+    ae "{\"key\":\"value\",\"key2\":[5,6,7]}"
+        (encodeJson ("key" .= ("value" :: Text) <> "key2" .= ([5,6,7] :: [Int])))
 
 case_monoid_laws = do
+    -- TODO QuickCheck
     let a = "key" .= ("value" :: Text)
         b = "key2" .= (999 :: Int)
         c = "key3" .= ([1,2,3] :: [Int])
