@@ -1,18 +1,28 @@
 {-# LANGUAGE OverloadedStrings, MagicHash, UnboxedTuples, BangPatterns, GeneralizedNewtypeDeriving #-}
 
-module Data.BufferBuilder
-    ( BufferBuilder
+{-|
+A library for efficiently building up a buffer of data.  When given known strict data, the
+implementation compiles directly into a series of efficient C function calls.
+-}
+module Data.BufferBuilder (
+    -- * The BufferBuilder Monad
+      BufferBuilder
     , runBufferBuilder
+    -- * Appending bytes and byte strings
     , appendByte
     , appendChar8
-    , appendCharUtf8
     , appendBS
     , appendLBS
     , appendLiteral
     , appendLiteralN
+    -- * UTF-8 encoding
+    , appendCharUtf8
+    , appendStringUtf8
+    -- * JSON escaping
     , appendEscapedJson
     , appendEscapedJsonLiteral
     , appendEscapedJsonText
+    -- * Printing numbers
     , appendDecimalSignedInt
     , appendDecimalDouble
     ) where
@@ -51,9 +61,9 @@ foreign import ccall unsafe "bw_append_json_escaped_utf16" bw_append_json_escape
 foreign import ccall unsafe "bw_append_decimal_signed_int" bw_append_decimal_signed_int :: BWHandle -> Int -> IO ()
 foreign import ccall unsafe "bw_append_decimal_double" bw_append_decimal_double :: BWHandle -> Double -> IO ()
 
--- | BufferBuilder sequences actions that append to an implicit,
+-- | BufferBuilder is the type of a monadic action that appends to an implicit,
 -- growable buffer.  Use 'runBufferBuilder' to extract the resulting
--- buffer as a 'BS.ByteString'
+-- buffer as a 'BS.ByteString'.  
 newtype BufferBuilder a = BB (ReaderT BWHandle IO a)
     deriving (Functor, Applicative, Monad, MonadReader BWHandle)
 
@@ -72,7 +82,8 @@ initialCapacity = 48
 -- some quantitative analysis would be good.
 -- an option to set the initial capacity would be better. :)
 
--- | Runs a BufferBuilder and extracts its resulting contents as a 'BS.ByteString'
+-- | Runs a sequence of 'BufferBuilder' actions, extracting the resulting
+-- contents as a 'BS.ByteString'.
 runBufferBuilder :: BufferBuilder () -> BS.ByteString
 runBufferBuilder = unsafeDupablePerformIO . runBufferBuilderIO initialCapacity
 
@@ -89,8 +100,9 @@ runBufferBuilderIO !capacity !(BB bw) = do
     touchForeignPtr handleFP
     return bs
 
-appendByte :: Word8 -- ^ byte to append to the buffer.
-           -> BufferBuilder ()
+-- | Append a single byte to the output buffer.  To append multiple bytes in sequence and
+-- avoid redundant bounds checks, consider using 'appendBS', 'appendLiteral', or 'appendLiteralN'.
+appendByte :: Word8 -> BufferBuilder ()
 appendByte b = withHandle $ \h -> bw_append_byte h b
 {-# INLINE appendByte #-}
 
@@ -104,32 +116,70 @@ appendChar8 :: Char -- ^ character to append to the buffer
 appendChar8 = appendByte . c2w
 {-# INLINE appendChar8 #-}
 
--- | Appends a UTF-8-encoded character to the buffer
-appendCharUtf8 :: Char -> BufferBuilder ()
-appendCharUtf8 c = withHandle $ \h -> bw_append_char_utf8 h c
-
--- | Appends a ByteString to the buffer.
+-- | Appends a 'BS.ByteString' to the buffer.  When appending constant, hardcoded strings, to
+-- avoid a CAF and the costs of its associated tag check and indirect jump, use
+-- 'appendLiteral' or 'appendLiteralN' instead.
 appendBS :: BS.ByteString -> BufferBuilder ()
-appendBS !(BS.PS (ForeignPtr addr _) offset len) =
+appendBS !(BS.PS fp offset len) =
     withHandle $ \h ->
-        bw_append_bs h len (plusPtr (Ptr addr) offset)
+        withForeignPtr fp $ \addr ->
+            bw_append_bs h len (plusPtr addr offset)
 {-# INLINE appendBS #-}
 
--- | Appends a Lazy ByteString to the buffer.
+-- | Appends a lazy 'BSL.ByteString' to the buffer.  This function operates by traversing
+-- the lazy 'BSL.ByteString' chunks, appending each in turn.
 appendLBS :: BSL.ByteString -> BufferBuilder ()
 appendLBS lbs = mapM_ appendBS $ BSL.toChunks lbs
+{-# INLINABLE appendLBS #-}
 
+-- | Appends a zero-terminated MagicHash string literal.  Use this function instead of
+-- 'appendBS' for string constants.  For example:
+--
+-- > appendLiteral "true"#
+--
+-- If the length of the string literal is known, calling
+-- 'appendLiteralN' is faster, as 'appendLiteralN' avoids a strlen
+-- operation which has nontrivial cost in some benchmarks.
 appendLiteral :: Addr# -> BufferBuilder ()
 appendLiteral addr =
     withHandle $ \h ->
         bw_append_bsz h (Ptr addr)
 {-# INLINE appendLiteral #-}
 
+-- | Appends a MagicHash string literal with a known length.  Use this when the
+-- string literal's length is known.  For example:
+--
+-- > appendLiteralN 4 "true"#
+--
+-- Per byte, this is the fastest append function.  It amounts to a C function call
+-- with two constant arguments.  The C function checks to see if it needs to grow
+-- the buffer and then it simply calls memcpy.
+-- 
+-- __WARNING__: passing an incorrect length value is likely to cause an access
+-- violation or worse.
 appendLiteralN :: Int -> Addr# -> BufferBuilder ()
 appendLiteralN len addr = 
     withHandle $ \h ->
         bw_append_bs h len (Ptr addr)
 {-# INLINE appendLiteralN #-}
+
+
+-- UTF-8 Functions
+
+
+-- | Appends a UTF-8-encoded 'Char' to the buffer.
+appendCharUtf8 :: Char -> BufferBuilder ()
+appendCharUtf8 c = withHandle $ \h -> bw_append_char_utf8 h c
+{-# INLINE appendCharUtf8 #-}
+
+-- | Appends a UTF-8-encoded 'String' to the buffer.  The best way to improve performance here
+-- is to use 'BS.ByteString' or 'Text' instead of 'String'.
+appendStringUtf8 :: String -> BufferBuilder ()
+appendStringUtf8 = mapM_ appendCharUtf8
+{-# INLINABLE appendStringUtf8 #-}
+
+-- JSON Functions
+
 
 appendEscapedJson :: BS.ByteString -> BufferBuilder ()
 appendEscapedJson !(BS.PS (ForeignPtr addr _) offset len) =
@@ -148,6 +198,10 @@ appendEscapedJsonText !(Text !(Array byteArray) ofs len) =
     withHandle $ \h ->
         bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# byteArray) `plusPtr` ofs)
 {-# INLINE appendEscapedJsonText #-}
+
+
+-- Number Functions
+
 
 appendDecimalSignedInt :: Int -> BufferBuilder ()
 appendDecimalSignedInt i =
