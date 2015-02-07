@@ -22,12 +22,9 @@ import           Control.Monad (when)
 import           Data.BufferBuilder.Utf8 (Utf8Builder)
 import qualified Data.BufferBuilder.Utf8 as BB
 import           Data.ByteString (ByteString)
-import qualified Data.ByteString.Lazy as BSL
-import qualified Data.ByteString.Builder as Builder
 import           Data.Foldable (for_)
 import           Data.Monoid
 import           Data.Text (Text)
-import qualified Data.Text.Encoding as DTE
 
 -- | Builds a JSON value.
 --
@@ -95,11 +92,6 @@ array collection = JsonBuilder $ do
                 unJsonBuilder $ appendJson el
     BB.appendChar8 ']'
 
-{-# INLINE appendQuotedString #-}
-appendQuotedString :: Text -> Utf8Builder ()
-appendQuotedString txt =
-    BB.appendEscapedJson $ DTE.encodeUtf8 txt
-
 -- | Create an 'ObjectBuilder' from a key and a value.
 {-# INLINE (.=) #-}
 (.=) :: ToJson a => Text -> a -> ObjectBuilder
@@ -163,9 +155,6 @@ instance ToJson a => ToJson [a] where
 instance ToJson Text where
     {-# INLINE appendJson #-}
     appendJson txt = JsonBuilder $ BB.appendEscapedJsonText txt
-
-fromBuilder :: Builder.Builder -> JsonBuilder
-fromBuilder builder = JsonBuilder $ BB.unsafeAppendBS $ BSL.toStrict $ Builder.toLazyByteString builder
 
 -- FIXME PERF
 instance ToJson Double where
