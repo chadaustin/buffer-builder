@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Data.BufferBuilder.Json
     ( -- * JSON
@@ -16,6 +17,8 @@ module Data.BufferBuilder.Json
     , (.=#)
     , pair
     , array
+    , vector
+    , unsafeAppendBS
     ) where
 
 import           GHC.Base
@@ -26,6 +29,9 @@ import           Data.ByteString (ByteString)
 import           Data.Monoid
 import           Data.Text (Text)
 import           Data.Foldable (Foldable, foldMap)
+import           Data.Vector (Vector)
+import qualified Data.Vector as Vector
+import qualified Data.Vector.Generic as GVector
 
 -- | Builds a JSON value.
 --
@@ -134,14 +140,36 @@ array collection = JsonBuilder $ do
     unObjectBuilder $ foldMap (\e -> ObjectBuilder (unJsonBuilder $ appendJson e) 1) collection
     BB.appendChar8 ']'
 
+-- | Serialize a 'Data.Vector.Generic.Vector' as a JSON array.
+-- This function generates better code than 'array', particularly for unboxed vectors.
+{-# INLINE vector #-}
+vector :: (GVector.Vector v a, ToJson a) => v a -> JsonBuilder
+vector vec = JsonBuilder $ do
+    let go vec' !index
+            | index >= GVector.length vec' = return ()
+            | otherwise = do
+                unJsonBuilder $ appendJson (vec' `GVector.unsafeIndex` 0)
+                go2nd vec' (index + 1)
+
+        go2nd vec' !index
+            | index >= GVector.length vec' = return ()
+            | otherwise = do
+                BB.appendChar8 ','
+                unJsonBuilder $ appendJson (vec' `GVector.unsafeIndex` index)
+                go2nd vec' (index + 1)
+
+    BB.appendChar8 '['
+    go vec 0
+    BB.appendChar8 ']'
+
 instance ToJson Bool where
-    appendJson b = JsonBuilder $ BB.unsafeAppendBS $ case b of
+    appendJson b = unsafeAppendBS $ case b of
         True -> "true"
         False -> "false"
 
 instance ToJson a => ToJson (Maybe a) where
     appendJson m = case m of
-        Nothing -> JsonBuilder $ BB.unsafeAppendBS "null"
+        Nothing -> unsafeAppendBS "null"
         Just a -> appendJson a
 
 instance ToJson a => ToJson [a] where
@@ -159,3 +187,9 @@ instance ToJson Double where
 instance ToJson Int where
     {-# INLINE appendJson #-}
     appendJson a = JsonBuilder $ BB.appendDecimalSignedInt a
+
+-- | Unsafely append a string into a JSON document.
+-- This function does _not_ escape, quote, or otherwise decorate the string in any way.
+-- This function is _unsafe_ because you can trivially use it to generate illegal JSON.
+unsafeAppendBS :: ByteString -> JsonBuilder
+unsafeAppendBS bs = JsonBuilder $ BB.unsafeAppendBS bs

@@ -56,6 +56,7 @@ library
                , bytestring
                , mtl
                , text
+               , vector
 
   default-language: Haskell2010
   ghc-options: -O2 -Wall
@@ -119,3 +120,17 @@ executable tinyjson
                , text
                , deepseq
                , criterion
+
+executable tinyjson2
+  main-is: TinyJson2.hs
+  hs-source-dirs: bench
+  default-language: Haskell2010
+  ghc-options: -O2 -Wall -Werror
+  ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
+  build-depends: base
+               , buffer-builder
+               , aeson
+               , bytestring
+               , deepseq
+               , criterion
+               , vector
