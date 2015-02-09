@@ -106,6 +106,7 @@ benchmark json-bench
                , text
                , deepseq
                , criterion
+               , vector
 
 executable tinyjson
   main-is: TinyJson.hs

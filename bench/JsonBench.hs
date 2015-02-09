@@ -18,6 +18,7 @@ import           Data.Text (Text)
 import           Data.String (IsString)
 import qualified Data.Aeson as Aeson
 import           Data.Aeson ((.:))
+import qualified Data.Vector as Vector
 import           Control.DeepSeq (NFData (..), force)
 
 newtype Utf8 = Utf8 { unUtf8 :: BS.ByteString }
@@ -266,7 +267,10 @@ main = do
     let parsedUserList :: [User]
         Just parsedUserList = Aeson.decode lazyContent
 
-    defaultMain [ bgroup "render"
+    defaultMain [ bgroup "vector"
+                    [ bench "vector bool" $ nf (Json.runBuilder . Json.vector) (Vector.replicate 100000 True)
+                    ]
+                , bgroup "render"
                     [ bench "bufferbuilder" $ nf Json.encodeJson parsedUserList
                     , bench "aeson" $ nf Aeson.encode parsedUserList
                     ]

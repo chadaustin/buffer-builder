@@ -163,6 +163,7 @@ vector !vec = JsonBuilder $ do
     BB.appendChar8 ']'
 
 instance ToJson Bool where
+    {-# INLINE appendJson #-}
     appendJson True = JsonBuilder $ BB.unsafeAppendLiteralN 4 "true"#
     appendJson False = JsonBuilder $ BB.unsafeAppendLiteralN 5 "false"#
 
