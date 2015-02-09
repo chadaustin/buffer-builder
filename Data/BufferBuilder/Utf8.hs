@@ -28,14 +28,7 @@ import           Data.Text (Text)
 import           Data.Text.Encoding (encodeUtf8)
 
 newtype Utf8Builder a = Utf8Builder { unBuilder :: BufferBuilder a }
-    deriving (Functor, Monad)
-
-instance Applicative Utf8Builder where
-    pure = return
-    left <*> right = do
-        f <- left
-        a <- right
-        return (f a)
+    deriving (Functor, Applicative, Monad)
 
 runUtf8Builder :: Utf8Builder () -> ByteString
 runUtf8Builder a = BB.runBufferBuilder $ unBuilder a
