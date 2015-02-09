@@ -144,23 +144,22 @@ array collection = JsonBuilder $ do
 {-# INLINABLE vector #-}
 vector :: (GVector.Vector v a, ToJson a) => v a -> JsonBuilder
 vector !vec = JsonBuilder $ do
-    let go !vec' !index
-            | index >= GVector.length vec' = return ()
+    let go !vec'
+            | 0 >= GVector.length vec' = BB.appendChar8 ']'
             | otherwise = do
                 unJsonBuilder $ appendJson (vec' `GVector.unsafeIndex` 0)
-                go2nd vec' (index + 1)
+                go2nd vec' 1
         {-# INLINE go #-}
 
         go2nd !vec' !index
-            | index >= GVector.length vec' = return ()
+            | index >= GVector.length vec' = BB.appendChar8 ']'
             | otherwise = do
                 BB.appendChar8 ','
                 unJsonBuilder $ appendJson (vec' `GVector.unsafeIndex` index)
                 go2nd vec' (index + 1)
 
     BB.appendChar8 '['
-    go vec 0
-    BB.appendChar8 ']'
+    go vec
 
 instance ToJson Bool where
     {-# INLINE appendJson #-}
