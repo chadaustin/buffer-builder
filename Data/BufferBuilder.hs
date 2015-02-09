@@ -111,8 +111,7 @@ c2w = fromIntegral . ord
 {-# INLINE c2w #-}
 
 -- | Appends a character to the buffer, truncating it to the bottom 8 bits.
-appendChar8 :: Char -- ^ character to append to the buffer
-            -> BufferBuilder ()
+appendChar8 :: Char -> BufferBuilder ()
 appendChar8 = appendByte . c2w
 {-# INLINE appendChar8 #-}
 
