@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Data.BufferBuilder.Utf8
        ( runUtf8Builder
@@ -8,6 +9,8 @@ module Data.BufferBuilder.Utf8
        , appendString
        , appendChar
        , appendChar8
+       , unsafeAppendLiteral
+       , unsafeAppendLiteralN
        , unsafeAppendBS
        , appendDecimalDouble
        , appendDecimalSignedInt
@@ -40,6 +43,11 @@ runUtf8Builder a = BB.runBufferBuilder $ unBuilder a
 
 unsafeAppendLiteral :: Addr# -> Utf8Builder ()
 unsafeAppendLiteral addr = Utf8Builder $ BB.appendLiteral addr
+{-# INLINE unsafeAppendLiteral #-}
+
+unsafeAppendLiteralN :: Int -> Addr# -> Utf8Builder ()
+unsafeAppendLiteralN !len addr = Utf8Builder $ BB.appendLiteralN len addr
+{-# INLINE unsafeAppendLiteralN #-}
 
 unsafeAppendBS :: ByteString -> Utf8Builder ()
 unsafeAppendBS a = Utf8Builder $ BB.appendBS a

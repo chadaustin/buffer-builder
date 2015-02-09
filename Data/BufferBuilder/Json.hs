@@ -19,6 +19,7 @@ module Data.BufferBuilder.Json
     , array
     , vector
     , unsafeAppendBS
+    , appendNull
     ) where
 
 import           GHC.Base
@@ -29,8 +30,6 @@ import           Data.ByteString (ByteString)
 import           Data.Monoid
 import           Data.Text (Text)
 import           Data.Foldable (Foldable, foldMap)
-import           Data.Vector (Vector)
-import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as GVector
 
 -- | Builds a JSON value.
@@ -142,16 +141,17 @@ array collection = JsonBuilder $ do
 
 -- | Serialize a 'Data.Vector.Generic.Vector' as a JSON array.
 -- This function generates better code than 'array', particularly for unboxed vectors.
-{-# INLINE vector #-}
+{-# INLINABLE vector #-}
 vector :: (GVector.Vector v a, ToJson a) => v a -> JsonBuilder
-vector vec = JsonBuilder $ do
-    let go vec' !index
+vector !vec = JsonBuilder $ do
+    let go !vec' !index
             | index >= GVector.length vec' = return ()
             | otherwise = do
                 unJsonBuilder $ appendJson (vec' `GVector.unsafeIndex` 0)
                 go2nd vec' (index + 1)
+        {-# INLINE go #-}
 
-        go2nd vec' !index
+        go2nd !vec' !index
             | index >= GVector.length vec' = return ()
             | otherwise = do
                 BB.appendChar8 ','
@@ -163,9 +163,8 @@ vector vec = JsonBuilder $ do
     BB.appendChar8 ']'
 
 instance ToJson Bool where
-    appendJson b = unsafeAppendBS $ case b of
-        True -> "true"
-        False -> "false"
+    appendJson True = JsonBuilder $ BB.unsafeAppendLiteralN 4 "true"#
+    appendJson False = JsonBuilder $ BB.unsafeAppendLiteralN 5 "false"#
 
 instance ToJson a => ToJson (Maybe a) where
     appendJson m = case m of
@@ -193,3 +192,6 @@ instance ToJson Int where
 -- This function is _unsafe_ because you can trivially use it to generate illegal JSON.
 unsafeAppendBS :: ByteString -> JsonBuilder
 unsafeAppendBS bs = JsonBuilder $ BB.unsafeAppendBS bs
+
+appendNull :: JsonBuilder
+appendNull = JsonBuilder $ BB.unsafeAppendLiteralN 4 "null"#
