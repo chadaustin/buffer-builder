@@ -30,6 +30,7 @@ import           Data.ByteString (ByteString)
 import           Data.Monoid
 import           Data.Text (Text)
 import           Data.Foldable (Foldable, foldMap)
+import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as GVector
 
 -- | Builds a JSON value.
@@ -144,22 +145,13 @@ array collection = JsonBuilder $ do
 {-# INLINABLE vector #-}
 vector :: (GVector.Vector v a, ToJson a) => v a -> JsonBuilder
 vector !vec = JsonBuilder $ do
-    let go !vec'
-            | 0 >= GVector.length vec' = BB.appendChar8 ']'
-            | otherwise = do
-                unJsonBuilder $ appendJson (vec' `GVector.unsafeIndex` 0)
-                go2nd vec' 1
-        {-# INLINE go #-}
-
-        go2nd !vec' !index
-            | index >= GVector.length vec' = BB.appendChar8 ']'
-            | otherwise = do
-                BB.appendChar8 ','
-                unJsonBuilder $ appendJson (vec' `GVector.unsafeIndex` index)
-                go2nd vec' (index + 1)
-
     BB.appendChar8 '['
-    go vec
+    when (GVector.length vec /= 0) $ do
+        unJsonBuilder $ appendJson (vec `GVector.unsafeIndex` 0)
+        GVector.forM_ vec $ \e -> do
+            BB.appendChar8 ','
+            unJsonBuilder $ appendJson e
+    BB.appendChar8 ']'
 
 instance ToJson Bool where
     {-# INLINE appendJson #-}

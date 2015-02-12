@@ -97,7 +97,7 @@ benchmark json-bench
   main-is: JsonBench.hs
   hs-source-dirs: bench
   default-language: Haskell2010
-  ghc-options: -O2 -Wall -Werror
+  ghc-options: -O2 -Wall
   ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
   build-depends: base
                , buffer-builder

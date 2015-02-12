@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MagicHash #-}
 
-module Main where
+module Main (main) where
 
 import Criterion
 
@@ -24,6 +24,7 @@ import           Control.DeepSeq (NFData (..), force)
 newtype Utf8 = Utf8 { unUtf8 :: BS.ByteString }
     deriving (Show, Eq, IsString)
 
+{-
 data EyeColor = Green | Blue | Brown
     deriving (Eq, Show)
 data Gender = Male | Female
@@ -252,7 +253,7 @@ encodeUserNaively User{..} =
         <> "friends" Json..= uFriends
         <> "greeting" Json..= uGreeting
         <> "favoriteFruit" Json..= uFavouriteFruit
-
+-}
 --- ---
 
 assumeSuccess :: Either a b -> b
@@ -261,15 +262,16 @@ assumeSuccess _ = error "assumeSuccess"
 
 main :: IO ()
 main = do
-    content <- BS.readFile "test.json"
-    let lazyContent = force $ BSL.fromChunks [content]
+    --content <- BS.readFile "test.json"
+    --let lazyContent = force $ BSL.fromChunks [content]
 
-    let parsedUserList :: [User]
-        Just parsedUserList = Aeson.decode lazyContent
+    --let parsedUserList :: [User]
+    --    Just parsedUserList = Aeson.decode lazyContent
 
     defaultMain [ bgroup "vector"
                     [ bench "vector bool" $ nf (Json.runBuilder . Json.vector) (Vector.replicate 100000 True)
                     ]
+                {-
                 , bgroup "render"
                     [ bench "bufferbuilder" $ nf Json.encodeJson parsedUserList
                     , bench "aeson" $ nf Aeson.encode parsedUserList
@@ -278,4 +280,5 @@ main = do
                     [ bench "bufferbuilder-text" $ nf (fmap (Json.runBuilder . Json.appendJson)) parsedUserList
                     , bench "bufferbuilder-addr" $ nf (fmap (Json.runBuilder . encodeUserNaively)) parsedUserList
                     ]
+                -}
                 ]
