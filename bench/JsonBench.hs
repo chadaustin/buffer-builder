@@ -270,6 +270,8 @@ main = do
 
     defaultMain [ bgroup "vector"
                     [ bench "vector bool" $ nf (Json.runBuilder . Json.vector) (Vector.replicate 100000 True)
+                    , bench "vector int" $ nf (Json.runBuilder . Json.vector) (Vector.replicate 100000 (1234 :: Int))
+                    , bench "vector text" $ nf (Json.runBuilder . Json.vector) (Vector.replicate 100000 ("hello world" :: Text))
                     ]
                 {-
                 , bgroup "render"

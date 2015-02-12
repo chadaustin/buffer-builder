@@ -30,7 +30,6 @@ import           Data.ByteString (ByteString)
 import           Data.Monoid
 import           Data.Text (Text)
 import           Data.Foldable (Foldable, foldMap)
-import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as GVector
 
 -- | Builds a JSON value.
