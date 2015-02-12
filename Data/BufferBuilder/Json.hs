@@ -145,9 +145,10 @@ array collection = JsonBuilder $ do
 vector :: (GVector.Vector v a, ToJson a) => v a -> JsonBuilder
 vector !vec = JsonBuilder $ do
     BB.appendChar8 '['
-    when (GVector.length vec /= 0) $ do
+    let len = GVector.length vec
+    when (len /= 0) $ do
         unJsonBuilder $ appendJson (vec `GVector.unsafeIndex` 0)
-        GVector.forM_ vec $ \e -> do
+        GVector.forM_ (GVector.slice 1 (len - 1) vec) $ \e -> do
             BB.appendChar8 ','
             unJsonBuilder $ appendJson e
     BB.appendChar8 ']'
