@@ -19,6 +19,7 @@ module Data.BufferBuilder.Json
     , array
     , vector
     , unsafeAppendBS
+    , unsafeAppendUtf8Builder
     , appendNull
     ) where
 
@@ -186,6 +187,12 @@ instance ToJson Int where
 -- This function is _unsafe_ because you can trivially use it to generate illegal JSON.
 unsafeAppendBS :: ByteString -> JsonBuilder
 unsafeAppendBS bs = JsonBuilder $ BB.unsafeAppendBS bs
+
+-- | Unsafely append a 'Utf8Builder' into a JSON document.
+-- This function does not escape, quote, or decorate the string in any way.
+-- This function is _unsafe_ because you can trivially use it to generate illegal JSON.
+unsafeAppendUtf8Builder :: Utf8Builder () -> JsonBuilder
+unsafeAppendUtf8Builder utf8b = JsonBuilder utf8b
 
 appendNull :: JsonBuilder
 appendNull = JsonBuilder $ BB.unsafeAppendLiteralN 4 "null"#
