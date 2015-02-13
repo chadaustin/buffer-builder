@@ -132,6 +132,7 @@ instance ToJson ObjectBuilder where
         BB.appendChar8 '}'
 
 -- | Serialize a 'Foldable' as a JSON array.
+{-# INLINE array #-}
 array :: (Foldable t, ToJson a) => t a -> JsonBuilder
 array collection = JsonBuilder $ do
     BB.appendChar8 '['
@@ -159,6 +160,7 @@ instance ToJson Bool where
     appendJson False = JsonBuilder $ BB.unsafeAppendLiteralN 5 "false"#
 
 instance ToJson a => ToJson (Maybe a) where
+    {-# INLINE appendJson #-}
     appendJson m = case m of
         Nothing -> unsafeAppendBS "null"
         Just a -> appendJson a

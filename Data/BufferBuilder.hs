@@ -77,7 +77,7 @@ withHandle action = do
 {-# INLINE withHandle #-}
 
 initialCapacity :: Int
-initialCapacity = 48
+initialCapacity = 20480
 -- why 48? it's only 6 64-bit words...  yet many small strings should fit.
 -- some quantitative analysis would be good.
 -- an option to set the initial capacity would be better. :)

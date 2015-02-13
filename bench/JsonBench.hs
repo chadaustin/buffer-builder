@@ -20,6 +20,8 @@ import qualified Data.Aeson as Aeson
 import           Data.Aeson ((.:))
 import qualified Data.Vector as Vector
 import           Control.DeepSeq (NFData (..), force)
+import qualified Data.Vector as Vector
+import qualified Data.Vector.Unboxed as UnboxedVector
 
 newtype Utf8 = Utf8 { unUtf8 :: BS.ByteString }
     deriving (Show, Eq, IsString)
@@ -278,5 +280,9 @@ main = do
                 , bgroup "addr vs text"
                     [ bench "bufferbuilder-text" $ nf (fmap (Json.runBuilder . Json.appendJson)) parsedUserList
                     , bench "bufferbuilder-addr" $ nf (fmap (Json.runBuilder . encodeUserNaively)) parsedUserList
+                    ]
+                , bgroup "breakout"
+                    [ bench "Vector" $ nf (Json.runBuilder . Json.vector) (Vector.fromList $! [0..65535] :: Vector.Vector Int)
+                    , bench "Vector.Unboxed" $ nf (Json.runBuilder . Json.vector) (UnboxedVector.fromList $! [0..65535] :: UnboxedVector.Vector Int)
                     ]
                 ]
