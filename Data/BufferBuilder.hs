@@ -89,6 +89,7 @@ newtype BufferBuilder a = BB (ReaderT Handle IO a)
 
 inBW :: IO a -> BufferBuilder a
 inBW = BB . lift
+{-# INLINE inBW #-}
 
 withHandle :: (Handle -> IO ()) -> BufferBuilder ()
 withHandle action = do

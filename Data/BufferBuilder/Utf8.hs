@@ -85,10 +85,12 @@ appendChar c = Utf8Builder $ BB.appendCharUtf8 c
 
 -- ASCII-7
 
+-- | Appends the bottom 7 bits of byte to the buffer.
 appendByte7 :: Word8 -> Utf8Builder ()
 appendByte7 = Utf8Builder . BB.appendByte7
 {-# INLINE appendByte7 #-}
 
+-- | Appends the bottom 7 bits of the 'Char' to the buffer.
 appendChar7 :: Char -> Utf8Builder ()
 appendChar7 = Utf8Builder . BB.appendChar7
 {-# INLINE appendChar7 #-}
