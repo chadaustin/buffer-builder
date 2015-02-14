@@ -64,6 +64,26 @@ extern "C" void bw_free(BufferWriter* bw) {
     free(bw);
 }
 
+extern "C" size_t bw_get_size(BufferWriter* bw) {
+    return bw->size;
+}
+
+extern "C" unsigned char* bw_trim_and_release_address(BufferWriter* bw) {
+    unsigned char* data = bw->data;
+    
+    if (bw->size + TRIM_THRESHOLD < bw->capacity) {
+        // try to shrink
+        data = reinterpret_cast<unsigned char*>(realloc(data, bw->size));
+        if (!data) {
+            // no problem
+            data = bw->data;
+        }
+    }
+
+    bw->data = 0;
+    return data;
+}
+
 extern "C" void bw_append_byte(BufferWriter* bw, unsigned char byte) {
     assert(bw->data);
     grow(bw, 1);
@@ -115,24 +135,26 @@ extern "C" void bw_append_bsz(BufferWriter* bw, const unsigned char* data) {
     bw_append_bs(bw, strlen(reinterpret_cast<const char*>(data)), data);
 }
 
-extern "C" size_t bw_get_size(BufferWriter* bw) {
-    return bw->size;
+extern "C" void bw_append_byte7(BufferWriter* bw, unsigned char byte) {
+    assert(bw->data);
+    grow(bw, 1);
+    bw->data[bw->size] = byte & 0x7F;
+    bw->size += 1;
 }
 
-extern "C" unsigned char* bw_trim_and_release_address(BufferWriter* bw) {
-    unsigned char* data = bw->data;
-    
-    if (bw->size + TRIM_THRESHOLD < bw->capacity) {
-        // try to shrink
-        data = reinterpret_cast<unsigned char*>(realloc(data, bw->size));
-        if (!data) {
-            // no problem
-            data = bw->data;
-        }
-    }
+extern "C" void bw_append_bs7(BufferWriter* bw, size_t size, const unsigned char* data) {
+    assert(bw->data);
+    grow(bw, size);
 
-    bw->data = 0;
-    return data;
+    unsigned char* out = bw->data + bw->size;
+    for (size_t i = 0; i < size; ++i) {
+        out[i] = data[i] & 0x7F;
+    }
+    bw->size += size;
+}
+
+extern "C" void bw_append_bsz7(BufferWriter* bw, const unsigned char* data) {
+    bw_append_bs7(bw, strlen(reinterpret_cast<const char*>(data)), data);
 }
 
 extern "C" void bw_append_json_escaped(BufferWriter* bw, size_t size, const unsigned char* data) {

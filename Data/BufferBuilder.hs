@@ -1,30 +1,43 @@
 {-# LANGUAGE OverloadedStrings, MagicHash, UnboxedTuples, BangPatterns, GeneralizedNewtypeDeriving #-}
 
 {-|
-A library for efficiently building up a buffer of data.  When given known strict data, the
-implementation compiles directly into a series of efficient C function calls.
+A library for efficiently building up a buffer of data.  When given data
+known to be strict, use of BufferBuilder compiles directly into a series
+of efficient C function calls.
 -}
 module Data.BufferBuilder (
+
     -- * The BufferBuilder Monad
       BufferBuilder
     , runBufferBuilder
+
     -- * Appending bytes and byte strings
     , appendByte
     , appendChar8
     , appendBS
     , appendLBS
     , appendLiteral
-    , appendLiteralN
+    , unsafeAppendLiteralN
+
+    -- Appending bytes and byte strings, truncated to 7 bits
+    , appendByte7
+    , appendChar7
+    , appendBS7
+    , appendLiteral7
+    , unsafeAppendLiteralN7
+
     -- * UTF-8 encoding
     , appendCharUtf8
     , appendStringUtf8
+
+    -- * Printing numbers
+    , appendDecimalSignedInt
+    , appendDecimalDouble
+
     -- * JSON escaping
     , appendEscapedJson
     , appendEscapedJsonLiteral
     , appendEscapedJsonText
-    -- * Printing numbers
-    , appendDecimalSignedInt
-    , appendDecimalDouble
     ) where
 
 import GHC.Base
@@ -44,33 +57,40 @@ import Data.Text () -- Show
 import Data.Text.Internal (Text (..))
 import Data.Text.Array (Array (..))
 
-data BWHandle'
-type BWHandle = Ptr BWHandle'
+data Handle'
+type Handle = Ptr Handle'
 
 foreign import ccall unsafe "strlen" c_strlen :: Ptr Word8 -> IO Int
-foreign import ccall unsafe "bw_new" bw_new :: Int -> IO BWHandle
-foreign import ccall unsafe "&bw_free" bw_free :: FunPtr (BWHandle -> IO ())
-foreign import ccall unsafe "bw_get_size" bw_get_size :: BWHandle -> IO Int
-foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: BWHandle -> IO (Ptr Word8)
-foreign import ccall unsafe "bw_append_byte" bw_append_byte :: BWHandle -> Word8 -> IO ()
-foreign import ccall unsafe "bw_append_char_utf8" bw_append_char_utf8 :: BWHandle -> Char -> IO ()
-foreign import ccall unsafe "bw_append_bs" bw_append_bs :: BWHandle -> Int -> Ptr Word8 -> IO ()
-foreign import ccall unsafe "bw_append_bsz" bw_append_bsz :: BWHandle -> Ptr Word8 -> IO ()
-foreign import ccall unsafe "bw_append_json_escaped" bw_append_json_escaped :: BWHandle -> Int -> Ptr Word8 -> IO ()
-foreign import ccall unsafe "bw_append_json_escaped_utf16" bw_append_json_escaped_utf16 :: BWHandle -> Int -> Ptr Word16 -> IO ()
-foreign import ccall unsafe "bw_append_decimal_signed_int" bw_append_decimal_signed_int :: BWHandle -> Int -> IO ()
-foreign import ccall unsafe "bw_append_decimal_double" bw_append_decimal_double :: BWHandle -> Double -> IO ()
+foreign import ccall unsafe "bw_new" bw_new :: Int -> IO Handle
+foreign import ccall unsafe "&bw_free" bw_free :: FunPtr (Handle -> IO ())
+foreign import ccall unsafe "bw_get_size" bw_get_size :: Handle -> IO Int
+foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: Handle -> IO (Ptr Word8)
+
+foreign import ccall unsafe "bw_append_byte" bw_append_byte :: Handle -> Word8 -> IO ()
+foreign import ccall unsafe "bw_append_char_utf8" bw_append_char_utf8 :: Handle -> Char -> IO ()
+foreign import ccall unsafe "bw_append_bs" bw_append_bs :: Handle -> Int -> Ptr Word8 -> IO ()
+foreign import ccall unsafe "bw_append_bsz" bw_append_bsz :: Handle -> Ptr Word8 -> IO ()
+
+foreign import ccall unsafe "bw_append_byte7" bw_append_byte7 :: Handle -> Word8 -> IO ()
+foreign import ccall unsafe "bw_append_bs7" bw_append_bs7 :: Handle -> Int -> Ptr Word8 -> IO ()
+foreign import ccall unsafe "bw_append_bsz7" bw_append_bsz7 :: Handle -> Ptr Word8 -> IO ()
+
+foreign import ccall unsafe "bw_append_decimal_signed_int" bw_append_decimal_signed_int :: Handle -> Int -> IO ()
+foreign import ccall unsafe "bw_append_decimal_double" bw_append_decimal_double :: Handle -> Double -> IO ()
+
+foreign import ccall unsafe "bw_append_json_escaped" bw_append_json_escaped :: Handle -> Int -> Ptr Word8 -> IO ()
+foreign import ccall unsafe "bw_append_json_escaped_utf16" bw_append_json_escaped_utf16 :: Handle -> Int -> Ptr Word16 -> IO ()
 
 -- | BufferBuilder is the type of a monadic action that appends to an implicit,
 -- growable buffer.  Use 'runBufferBuilder' to extract the resulting
 -- buffer as a 'BS.ByteString'.  
-newtype BufferBuilder a = BB (ReaderT BWHandle IO a)
-    deriving (Functor, Applicative, Monad, MonadReader BWHandle)
+newtype BufferBuilder a = BB (ReaderT Handle IO a)
+    deriving (Functor, Applicative, Monad, MonadReader Handle)
 
 inBW :: IO a -> BufferBuilder a
 inBW = BB . lift
 
-withHandle :: (BWHandle -> IO ()) -> BufferBuilder ()
+withHandle :: (Handle -> IO ()) -> BufferBuilder ()
 withHandle action = do
     h <- ask
     inBW $ action h
@@ -82,8 +102,8 @@ initialCapacity = 20480
 -- some quantitative analysis would be good.
 -- an option to set the initial capacity would be better. :)
 
--- | Runs a sequence of 'BufferBuilder' actions, extracting the resulting
--- contents as a 'BS.ByteString'.
+-- | Run a sequence of 'BufferBuilder' actions and extract the resulting
+-- buffer as a 'BS.ByteString'.
 runBufferBuilder :: BufferBuilder () -> BS.ByteString
 runBufferBuilder = unsafeDupablePerformIO . runBufferBuilderIO initialCapacity
 
@@ -101,7 +121,7 @@ runBufferBuilderIO !capacity !(BB bw) = do
     return bs
 
 -- | Append a single byte to the output buffer.  To append multiple bytes in sequence and
--- avoid redundant bounds checks, consider using 'appendBS', 'appendLiteral', or 'appendLiteralN'.
+-- avoid redundant bounds checks, consider using 'appendBS', 'appendLiteral', or 'unsafeAppendLiteralN'.
 appendByte :: Word8 -> BufferBuilder ()
 appendByte b = withHandle $ \h -> bw_append_byte h b
 {-# INLINE appendByte #-}
@@ -117,7 +137,7 @@ appendChar8 = appendByte . c2w
 
 -- | Appends a 'BS.ByteString' to the buffer.  When appending constant, hardcoded strings, to
 -- avoid a CAF and the costs of its associated tag check and indirect jump, use
--- 'appendLiteral' or 'appendLiteralN' instead.
+-- 'appendLiteral' or 'unsafeAppendLiteralN' instead.
 appendBS :: BS.ByteString -> BufferBuilder ()
 appendBS !(BS.PS fp offset len) =
     withHandle $ \h ->
@@ -137,7 +157,7 @@ appendLBS lbs = mapM_ appendBS $ BSL.toChunks lbs
 -- > appendLiteral "true"#
 --
 -- If the length of the string literal is known, calling
--- 'appendLiteralN' is faster, as 'appendLiteralN' avoids a strlen
+-- 'unsafeAppendLiteralN' is faster, as 'unsafeAppendLiteralN' avoids a strlen
 -- operation which has nontrivial cost in some benchmarks.
 appendLiteral :: Addr# -> BufferBuilder ()
 appendLiteral addr =
@@ -148,7 +168,7 @@ appendLiteral addr =
 -- | Appends a MagicHash string literal with a known length.  Use this when the
 -- string literal's length is known.  For example:
 --
--- > appendLiteralN 4 "true"#
+-- > unsafeAppendLiteralN 4 "true"#
 --
 -- Per byte, this is the fastest append function.  It amounts to a C function call
 -- with two constant arguments.  The C function checks to see if it needs to grow
@@ -156,15 +176,43 @@ appendLiteral addr =
 -- 
 -- __WARNING__: passing an incorrect length value is likely to cause an access
 -- violation or worse.
-appendLiteralN :: Int -> Addr# -> BufferBuilder ()
-appendLiteralN len addr = 
+unsafeAppendLiteralN :: Int -> Addr# -> BufferBuilder ()
+unsafeAppendLiteralN len addr =
     withHandle $ \h ->
         bw_append_bs h len (Ptr addr)
-{-# INLINE appendLiteralN #-}
+{-# INLINE unsafeAppendLiteralN #-}
 
 
--- UTF-8 Functions
+-- 7-bit truncation
 
+appendByte7 :: Word8 -> BufferBuilder ()
+appendByte7 b = withHandle $ \h -> bw_append_byte7 h b
+{-# INLINE appendByte7 #-}
+
+appendChar7 :: Char -> BufferBuilder ()
+appendChar7 = appendByte7 . c2w
+{-# INLINE appendChar7 #-}
+
+appendBS7 :: BS.ByteString -> BufferBuilder ()
+appendBS7 !(BS.PS fp offset len) =
+    withHandle $ \h ->
+        withForeignPtr fp $ \addr ->
+            bw_append_bs7 h len (plusPtr addr offset)
+{-# INLINE appendBS7 #-}
+
+appendLiteral7 :: Addr# -> BufferBuilder ()
+appendLiteral7 addr =
+    withHandle $ \h ->
+        bw_append_bsz7 h (Ptr addr)
+{-# INLINE appendLiteral7 #-}
+
+unsafeAppendLiteralN7 :: Int -> Addr# -> BufferBuilder ()
+unsafeAppendLiteralN7 len addr =
+    withHandle $ \h ->
+        bw_append_bs7 h len (Ptr addr)
+{-# INLINE unsafeAppendLiteralN7 #-}
+
+-- Encoding UTF-8
 
 -- | Appends a UTF-8-encoded 'Char' to the buffer.
 appendCharUtf8 :: Char -> BufferBuilder ()
@@ -177,8 +225,25 @@ appendStringUtf8 :: String -> BufferBuilder ()
 appendStringUtf8 = mapM_ appendCharUtf8
 {-# INLINABLE appendStringUtf8 #-}
 
--- JSON Functions
 
+-- Printing Numbers
+
+-- | Appends a decimal integer, just like calling printf("%d", ...)
+appendDecimalSignedInt :: Int -> BufferBuilder ()
+appendDecimalSignedInt i =
+    withHandle $ \h ->
+        bw_append_decimal_signed_int h i
+{-# INLINE appendDecimalSignedInt #-}
+
+-- | Appends a decimal double, just like calling printf("%f", ...)
+appendDecimalDouble :: Double -> BufferBuilder ()
+appendDecimalDouble d =
+    withHandle $ \h ->
+        bw_append_decimal_double h d
+{-# INLINE appendDecimalDouble #-}
+
+
+-- Encoding JSON
 
 appendEscapedJson :: BS.ByteString -> BufferBuilder ()
 appendEscapedJson !(BS.PS (ForeignPtr addr _) offset len) =
@@ -191,6 +256,7 @@ appendEscapedJsonLiteral addr =
     withHandle $ \h -> do
         len <- c_strlen (Ptr addr)
         bw_append_json_escaped h len (Ptr addr)
+{-# INLINE appendEscapedJsonLiteral #-}
 
 appendEscapedJsonText :: Text -> BufferBuilder ()
 appendEscapedJsonText !(Text arr ofs len) =
@@ -198,19 +264,3 @@ appendEscapedJsonText !(Text arr ofs len) =
     in withHandle $ \h ->
         bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# byteArray) `plusPtr` ofs)
 {-# INLINE appendEscapedJsonText #-}
-
-
--- Number Functions
-
-
-appendDecimalSignedInt :: Int -> BufferBuilder ()
-appendDecimalSignedInt i =
-    withHandle $ \h ->
-        bw_append_decimal_signed_int h i
-{-# INLINE appendDecimalSignedInt #-}
-
-appendDecimalDouble :: Double -> BufferBuilder ()
-appendDecimalDouble d =
-    withHandle $ \h ->
-        bw_append_decimal_double h d
-{-# INLINE appendDecimalDouble #-}

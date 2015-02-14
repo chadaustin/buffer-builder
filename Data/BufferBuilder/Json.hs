@@ -26,7 +26,7 @@ module Data.BufferBuilder.Json
 import           GHC.Base
 import           Control.Monad (when)
 import           Data.BufferBuilder.Utf8 (Utf8Builder)
-import qualified Data.BufferBuilder.Utf8 as BB
+import qualified Data.BufferBuilder.Utf8 as UB
 import           Data.ByteString (ByteString)
 import           Data.Monoid
 import           Data.Text (Text)
@@ -43,7 +43,7 @@ newtype JsonBuilder = JsonBuilder { unJsonBuilder :: Utf8Builder () }
 -- With this function, you can use 'JsonBuilders' that were not obtained by using the 'ToJson' typeclass.
 -- This is useful if you want to be able to JSON-encode the same data type in multiple ways.
 runBuilder :: JsonBuilder -> ByteString
-runBuilder = BB.runUtf8Builder . unJsonBuilder
+runBuilder = UB.runUtf8Builder . unJsonBuilder
 
 -- | Convert a datum to JSON.
 -- Eqivalent to
@@ -60,8 +60,8 @@ class ToJson a where
 -- | A 'JsonBuilder' that represents the empty object.
 emptyObject :: JsonBuilder
 emptyObject = JsonBuilder $ do
-    BB.appendChar8 '{'
-    BB.appendChar8 '}'
+    UB.appendChar7 '{'
+    UB.appendChar7 '}'
 
 -- | Create an 'ObjectBuilder' from a key and a value.
 {-# INLINE (.=) #-}
@@ -69,8 +69,8 @@ emptyObject = JsonBuilder $ do
 a .= b = ObjectBuilder go 1
   where
     go = do
-        BB.appendEscapedJsonText a
-        BB.appendChar8 ':'
+        UB.appendEscapedJsonText a
+        UB.appendChar7 ':'
         unJsonBuilder $ appendJson b
 infixr 8 .=
 
@@ -79,8 +79,8 @@ infixr 8 .=
 a .=# b = ObjectBuilder go 1
   where
     go = do
-        BB.appendEscapedJsonLiteral a
-        BB.appendChar8 ':'
+        UB.appendEscapedJsonLiteral a
+        UB.appendChar7 ':'
         unJsonBuilder $ appendJson b
 
 -- | Wordy alias to '.='.
@@ -122,43 +122,43 @@ instance Monoid ObjectBuilder where
         go = do
             unObjectBuilder a
             when (2 == needsComma a + needsComma b) $
-                BB.appendChar8 ','
+                UB.appendChar7 ','
             unObjectBuilder b
 
 instance ToJson ObjectBuilder where
     {-# INLINE appendJson #-}
     appendJson ob = JsonBuilder $ do
-        BB.appendChar8 '{'
+        UB.appendChar7 '{'
         unObjectBuilder ob
-        BB.appendChar8 '}'
+        UB.appendChar7 '}'
 
 -- | Serialize a 'Foldable' as a JSON array.
 {-# INLINE array #-}
 array :: (Foldable t, ToJson a) => t a -> JsonBuilder
 array collection = JsonBuilder $ do
-    BB.appendChar8 '['
+    UB.appendChar7 '['
     -- HACK: ObjectBuilder is not "type correct" but it has exactly the behaviour we want for this function.
     unObjectBuilder $ foldMap (\e -> ObjectBuilder (unJsonBuilder $ appendJson e) 1) collection
-    BB.appendChar8 ']'
+    UB.appendChar7 ']'
 
 -- | Serialize a 'Data.Vector.Generic.Vector' as a JSON array.
 -- This function generates better code than 'array', particularly for unboxed vectors.
 {-# INLINABLE vector #-}
 vector :: (GVector.Vector v a, ToJson a) => v a -> JsonBuilder
 vector !vec = JsonBuilder $ do
-    BB.appendChar8 '['
+    UB.appendChar7 '['
     let len = GVector.length vec
     when (len /= 0) $ do
         unJsonBuilder $ appendJson (vec `GVector.unsafeIndex` 0)
         GVector.forM_ (GVector.slice 1 (len - 1) vec) $ \e -> do
-            BB.appendChar8 ','
+            UB.appendChar7 ','
             unJsonBuilder $ appendJson e
-    BB.appendChar8 ']'
+    UB.appendChar7 ']'
 
 instance ToJson Bool where
     {-# INLINE appendJson #-}
-    appendJson True = JsonBuilder $ BB.unsafeAppendLiteralN 4 "true"#
-    appendJson False = JsonBuilder $ BB.unsafeAppendLiteralN 5 "false"#
+    appendJson True = JsonBuilder $ UB.unsafeAppendLiteralN 4 "true"#
+    appendJson False = JsonBuilder $ UB.unsafeAppendLiteralN 5 "false"#
 
 instance ToJson a => ToJson (Maybe a) where
     {-# INLINE appendJson #-}
@@ -172,21 +172,21 @@ instance ToJson a => ToJson [a] where
 
 instance ToJson Text where
     {-# INLINE appendJson #-}
-    appendJson txt = JsonBuilder $ BB.appendEscapedJsonText txt
+    appendJson txt = JsonBuilder $ UB.appendEscapedJsonText txt
 
 instance ToJson Double where
     {-# INLINE appendJson #-}
-    appendJson a = JsonBuilder $ BB.appendDecimalDouble a
+    appendJson a = JsonBuilder $ UB.appendDecimalDouble a
 
 instance ToJson Int where
     {-# INLINE appendJson #-}
-    appendJson a = JsonBuilder $ BB.appendDecimalSignedInt a
+    appendJson a = JsonBuilder $ UB.appendDecimalSignedInt a
 
 -- | Unsafely append a string into a JSON document.
 -- This function does _not_ escape, quote, or otherwise decorate the string in any way.
 -- This function is _unsafe_ because you can trivially use it to generate illegal JSON.
 unsafeAppendBS :: ByteString -> JsonBuilder
-unsafeAppendBS bs = JsonBuilder $ BB.unsafeAppendBS bs
+unsafeAppendBS bs = JsonBuilder $ UB.unsafeAppendBS bs
 
 -- | Unsafely append a 'Utf8Builder' into a JSON document.
 -- This function does not escape, quote, or decorate the string in any way.
@@ -195,4 +195,4 @@ unsafeAppendUtf8Builder :: Utf8Builder () -> JsonBuilder
 unsafeAppendUtf8Builder utf8b = JsonBuilder utf8b
 
 appendNull :: JsonBuilder
-appendNull = JsonBuilder $ BB.unsafeAppendLiteralN 4 "null"#
+appendNull = JsonBuilder $ UB.unsafeAppendLiteralN 4 "null"#

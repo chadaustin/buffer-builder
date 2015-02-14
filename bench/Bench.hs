@@ -43,21 +43,21 @@ buildURLLiterals :: Int -> ByteString
 buildURLLiterals times = runBufferBuilder $ do
     replicateM_ times $ do
         -- literals avoid the CAFs for ByteString constants
-        appendLiteralN 4 "http"#
-        appendLiteralN 3 "://"#
-        appendLiteralN 11 "example.com"#
+        unsafeAppendLiteralN 4 "http"#
+        unsafeAppendLiteralN 3 "://"#
+        unsafeAppendLiteralN 11 "example.com"#
         appendChar8 '/'
-        appendLiteralN 18 "the/path/goes/here"#
+        unsafeAppendLiteralN 18 "the/path/goes/here"#
         appendChar8 '?'
-        appendLiteralN 3 "key"#
+        unsafeAppendLiteralN 3 "key"#
         appendChar8 '='
-        appendLiteralN 5 "value"#
+        unsafeAppendLiteralN 5 "value"#
         appendChar8 '?'
-        appendLiteralN 8 "otherkey"#
+        unsafeAppendLiteralN 8 "otherkey"#
         appendChar8 '='
-        appendLiteralN 10 "othervalue"#
+        unsafeAppendLiteralN 10 "othervalue"#
         appendChar8 '#'
-        appendLiteralN 15 "hashyhashyhashy"#
+        unsafeAppendLiteralN 15 "hashyhashyhashy"#
 
 data Record = Record
               { f1 :: !ByteString
