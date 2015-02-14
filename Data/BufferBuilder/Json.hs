@@ -155,6 +155,10 @@ vector !vec = JsonBuilder $ do
             unJsonBuilder $ appendJson e
     UB.appendChar7 ']'
 
+instance ToJson JsonBuilder where
+    {-# INLINE appendJson #-}
+    appendJson = id
+
 instance ToJson Bool where
     {-# INLINE appendJson #-}
     appendJson True = JsonBuilder $ UB.unsafeAppendLiteralN 4 "true"#

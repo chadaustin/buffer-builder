@@ -15,16 +15,11 @@ import qualified Data.ByteString.Lazy as BSL
 
 import qualified Data.BufferBuilder.Json as Json
 import           Data.Text (Text)
-import           Data.String (IsString)
 import qualified Data.Aeson as Aeson
 import           Data.Aeson ((.:))
 import qualified Data.Vector as Vector
 import           Control.DeepSeq (NFData (..), force)
-import qualified Data.Vector as Vector
 import qualified Data.Vector.Unboxed as UnboxedVector
-
-newtype Utf8 = Utf8 { unUtf8 :: BS.ByteString }
-    deriving (Show, Eq, IsString)
 
 data EyeColor = Green | Blue | Brown
     deriving (Eq, Show)
@@ -255,10 +250,6 @@ encodeUserNaively User{..} =
         <> "greeting" Json..= uGreeting
         <> "favoriteFruit" Json..= uFavouriteFruit
 --- ---
-
-assumeSuccess :: Either a b -> b
-assumeSuccess (Right r) = r
-assumeSuccess _ = error "assumeSuccess"
 
 main :: IO ()
 main = do
