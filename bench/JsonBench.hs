@@ -264,6 +264,16 @@ main = do
                     , bench "vector int" $ nf (Json.runBuilder . Json.vector) (Vector.replicate 100000 (1234 :: Int))
                     , bench "vector text" $ nf (Json.runBuilder . Json.vector) (Vector.replicate 100000 ("hello world" :: Text))
                     ]
+                , bgroup "list-foldable"
+                    [ bench "list-foldable bool" $ nf (Json.runBuilder . Json.array) (replicate 100000 True)
+                    , bench "list-foldable int" $ nf (Json.runBuilder . Json.array) (replicate 100000 (1234 :: Int))
+                    , bench "list-foldable text" $ nf (Json.runBuilder . Json.array) (replicate 100000 ("hello world" :: Text))
+                    ]
+                , bgroup "list"
+                    [ bench "list bool" $ nf (Json.runBuilder . Json.list) (replicate 100000 True)
+                    , bench "list int" $ nf (Json.runBuilder . Json.list) (replicate 100000 (1234 :: Int))
+                    , bench "list text" $ nf (Json.runBuilder . Json.list) (replicate 100000 ("hello world" :: Text))
+                    ]
                 , bgroup "render"
                     [ bench "bufferbuilder" $ nf Json.encodeJson parsedUserList
                     , bench "aeson" $ nf Aeson.encode parsedUserList

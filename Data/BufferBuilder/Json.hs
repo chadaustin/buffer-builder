@@ -6,7 +6,6 @@
 
 module Data.BufferBuilder.Json
     ( -- * JSON
-      -- $use
       ToJson (..)
     , JsonBuilder
     , ObjectBuilder
@@ -17,20 +16,21 @@ module Data.BufferBuilder.Json
     , (.=#)
     , pair
     , array
+    , list
     , vector
     , unsafeAppendBS
     , unsafeAppendUtf8Builder
     , appendNull
     ) where
 
-import           GHC.Base
-import           Control.Monad (when)
-import           Data.BufferBuilder.Utf8 (Utf8Builder)
+import GHC.Base
+import Control.Monad (when, forM_)
+import Data.BufferBuilder.Utf8 (Utf8Builder)
 import qualified Data.BufferBuilder.Utf8 as UB
-import           Data.ByteString (ByteString)
-import           Data.Monoid
-import           Data.Text (Text)
-import           Data.Foldable (Foldable, foldMap)
+import Data.ByteString (ByteString)
+import Data.Monoid
+import Data.Text (Text)
+import Data.Foldable (Foldable, foldMap)
 import qualified Data.Vector.Generic as GVector
 
 -- | Builds a JSON value.
@@ -45,6 +45,13 @@ newtype JsonBuilder = JsonBuilder { unJsonBuilder :: Utf8Builder () }
 runBuilder :: JsonBuilder -> ByteString
 runBuilder = UB.runUtf8Builder . unJsonBuilder
 
+
+---- General JSON vValue support
+
+-- | The class of types that can be converted to JSON.
+class ToJson a where
+    appendJson :: a -> JsonBuilder
+
 -- | Convert a datum to JSON.
 -- Eqivalent to
 -- @
@@ -53,41 +60,8 @@ runBuilder = UB.runUtf8Builder . unJsonBuilder
 encodeJson :: ToJson a => a -> ByteString
 encodeJson = runBuilder . appendJson
 
--- | The class of types that can be converted to JSON.
-class ToJson a where
-    appendJson :: a -> JsonBuilder
 
--- | A 'JsonBuilder' that represents the empty object.
-emptyObject :: JsonBuilder
-emptyObject = JsonBuilder $ do
-    UB.appendChar7 '{'
-    UB.appendChar7 '}'
-
--- | Create an 'ObjectBuilder' from a key and a value.
-{-# INLINE (.=) #-}
-(.=) :: ToJson a => Text -> a -> ObjectBuilder
-a .= b = ObjectBuilder go 1
-  where
-    go = do
-        UB.appendEscapedJsonText a
-        UB.appendChar7 ':'
-        unJsonBuilder $ appendJson b
-infixr 8 .=
-
-{-# INLINE (.=#) #-}
-(.=#) :: ToJson a => Addr# -> a -> ObjectBuilder
-a .=# b = ObjectBuilder go 1
-  where
-    go = do
-        UB.appendEscapedJsonLiteral a
-        UB.appendChar7 ':'
-        unJsonBuilder $ appendJson b
-
--- | Wordy alias to '.='.
-{-# INLINE pair #-}
-pair :: ToJson a => Text -> a -> ObjectBuilder
-pair = (.=)
-infixr 8 `pair`
+---- Objects
 
 -- | Builds a JSON object.
 --
@@ -132,6 +106,41 @@ instance ToJson ObjectBuilder where
         unObjectBuilder ob
         UB.appendChar7 '}'
 
+-- | A 'JsonBuilder' that represents the empty object.
+emptyObject :: JsonBuilder
+emptyObject = JsonBuilder $ do
+    UB.appendChar7 '{'
+    UB.appendChar7 '}'
+
+-- | Create an 'ObjectBuilder' from a key and a value.
+{-# INLINE (.=) #-}
+(.=) :: ToJson a => Text -> a -> ObjectBuilder
+a .= b = ObjectBuilder go 1
+  where
+    go = do
+        UB.appendEscapedJsonText a
+        UB.appendChar7 ':'
+        unJsonBuilder $ appendJson b
+infixr 8 .=
+
+{-# INLINE (.=#) #-}
+(.=#) :: ToJson a => Addr# -> a -> ObjectBuilder
+a .=# b = ObjectBuilder go 1
+  where
+    go = do
+        UB.appendEscapedJsonLiteral a
+        UB.appendChar7 ':'
+        unJsonBuilder $ appendJson b
+
+-- | Wordy alias to '.='.
+{-# INLINE pair #-}
+pair :: ToJson a => Text -> a -> ObjectBuilder
+pair = (.=)
+infixr 8 `pair`
+
+
+---- Arrays
+
 -- | Serialize a 'Foldable' as a JSON array.
 {-# INLINE array #-}
 array :: (Foldable t, ToJson a) => t a -> JsonBuilder
@@ -139,6 +148,19 @@ array collection = JsonBuilder $ do
     UB.appendChar7 '['
     -- HACK: ObjectBuilder is not "type correct" but it has exactly the behaviour we want for this function.
     unObjectBuilder $ foldMap (\e -> ObjectBuilder (unJsonBuilder $ appendJson e) 1) collection
+    UB.appendChar7 ']'
+
+{-# INLINABLE list #-}
+list :: ToJson a => [a] -> JsonBuilder
+list !ls = JsonBuilder $ do
+    UB.appendChar7 '['
+    case ls of
+        [] -> return ()
+        x:xs -> do
+            unJsonBuilder $ appendJson x
+            forM_ xs $ \(!e) -> do
+                UB.appendChar7 ','
+                unJsonBuilder $ appendJson e
     UB.appendChar7 ']'
 
 -- | Serialize a 'Data.Vector.Generic.Vector' as a JSON array.
@@ -150,7 +172,7 @@ vector !vec = JsonBuilder $ do
     let len = GVector.length vec
     when (len /= 0) $ do
         unJsonBuilder $ appendJson (vec `GVector.unsafeIndex` 0)
-        GVector.forM_ (GVector.slice 1 (len - 1) vec) $ \e -> do
+        GVector.forM_ (GVector.tail vec) $ \e -> do
             UB.appendChar7 ','
             unJsonBuilder $ appendJson e
     UB.appendChar7 ']'
