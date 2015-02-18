@@ -142,7 +142,7 @@ infixr 8 `pair`
 ---- Arrays
 
 -- | Serialize a 'Foldable' as a JSON array.
-{-# INLINE array #-}
+{-# INLINABLE array #-}
 array :: (Foldable t, ToJson a) => t a -> JsonBuilder
 array collection = JsonBuilder $ do
     UB.appendChar7 '['
@@ -155,13 +155,13 @@ list :: ToJson a => [a] -> JsonBuilder
 list !ls = JsonBuilder $ do
     UB.appendChar7 '['
     case ls of
-        [] -> return ()
+        [] -> UB.appendChar7 ']'
         x:xs -> do
             unJsonBuilder $ appendJson x
             forM_ xs $ \(!e) -> do
                 UB.appendChar7 ','
                 unJsonBuilder $ appendJson e
-    UB.appendChar7 ']'
+            UB.appendChar7 ']'
 
 -- | Serialize a 'Data.Vector.Generic.Vector' as a JSON array.
 -- This function generates better code than 'array', particularly for unboxed vectors.
@@ -177,6 +177,9 @@ vector !vec = JsonBuilder $ do
             unJsonBuilder $ appendJson e
     UB.appendChar7 ']'
 
+
+---- Common JSON instances
+
 instance ToJson JsonBuilder where
     {-# INLINE appendJson #-}
     appendJson = id
@@ -189,12 +192,12 @@ instance ToJson Bool where
 instance ToJson a => ToJson (Maybe a) where
     {-# INLINE appendJson #-}
     appendJson m = case m of
-        Nothing -> unsafeAppendBS "null"
+        Nothing -> JsonBuilder $ UB.unsafeAppendLiteralN 4 "null"#
         Just a -> appendJson a
 
 instance ToJson a => ToJson [a] where
     {-# INLINE appendJson #-}
-    appendJson = array
+    appendJson = list
 
 instance ToJson Text where
     {-# INLINE appendJson #-}
