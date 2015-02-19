@@ -2,8 +2,10 @@
 
 module BufferTest (tests, main) where
 
+import qualified Data.ByteString.Char8 as BSC
 import Test.Tasty
 import Test.Tasty.TH
+import Test.Tasty.QuickCheck
 import Test.Tasty.HUnit
 import Data.BufferBuilder
 
@@ -30,6 +32,9 @@ case_append_literals = do
             appendLiteral "foo"#
             appendLiteral "bar"#
     assertEqual "matches" "foobar" result
+
+prop_match_intDec :: Int -> Bool
+prop_match_intDec i = runBufferBuilder (appendDecimalSignedInt i) == (BSC.pack $ show i)
 
 tests :: TestTree
 tests = $(testGroupGenerator)

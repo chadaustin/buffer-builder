@@ -181,11 +181,43 @@ extern "C" void bw_append_json_escaped(BufferWriter* bw, size_t size, const unsi
     bw->size = dest - bw->data;
 }
 
+unsigned bw_itoa(unsigned char* output_, signed int i) {
+    unsigned char* output = output_;
+    unsigned char buffer[32] = {0};
+    unsigned char* p = buffer;
+
+    // negation doesn't work if i == MIN_INT
+    if (i < 0) {
+        *output++ = '-';
+
+        int io = i;
+        i /= 10;
+        *p++ = '0' + (i * 10 - io);
+        if (i == 0) {
+            *output++ = p[-1];
+            return output - output_;
+        } else {
+            i = -i;
+        }
+    }
+
+    do {
+        *p++ = '0' + (i % 10);
+        i /= 10;
+    } while (i);
+
+    while (p > buffer) {
+        *output++ = *--p;
+    }
+
+    return output - output_;
+}
+
 extern "C" void bw_append_decimal_signed_int(BufferWriter* bw, signed int i) {
     assert(bw->data);
-    grow(bw, 22); // enough for a 64 bit MIN_INT
+    grow(bw, 32); // enough
 
-    size_t used = sprintf(reinterpret_cast<char*>(bw->data + bw->size), "%i", i);
+    unsigned used = bw_itoa(bw->data + bw->size, i);
     bw->size += used;
 }
 
