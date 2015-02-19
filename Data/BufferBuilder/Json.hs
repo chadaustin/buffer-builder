@@ -12,6 +12,7 @@ module Data.BufferBuilder.Json
     , encodeJson
     , runBuilder
     , emptyObject
+    , hashMap
     , (.=)
     , (.=#)
     , pair
@@ -32,6 +33,7 @@ import Data.Monoid
 import Data.Text (Text)
 import Data.Foldable (Foldable, foldMap)
 import qualified Data.Vector.Generic as GVector
+import qualified Data.HashMap.Strict as HashMap
 
 -- | Builds a JSON value.
 --
@@ -111,6 +113,26 @@ emptyObject :: JsonBuilder
 emptyObject = JsonBuilder $ do
     UB.appendChar7 '{'
     UB.appendChar7 '}'
+
+{-# INLINE writePair #-}
+writePair :: ToJson a => (Text, a) -> Utf8Builder ()
+writePair (key, value) = do
+    UB.appendEscapedJsonText key
+    UB.appendChar7 ':'
+    unJsonBuilder $ appendJson value
+
+{-# INLINABLE hashMap #-}
+hashMap :: ToJson a => HashMap.HashMap Text a -> JsonBuilder
+hashMap hm = JsonBuilder $ do
+    UB.appendChar7 '{'
+    case HashMap.toList hm of
+        [] -> UB.appendChar7 '}'
+        (x:xs) -> do
+            writePair x
+            forM_ xs $ \p -> do
+                UB.appendChar7 ','
+                writePair p
+            UB.appendChar7 '}'
 
 -- | Create an 'ObjectBuilder' from a key and a value.
 {-# INLINE (.=) #-}
