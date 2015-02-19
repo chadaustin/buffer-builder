@@ -37,7 +37,9 @@ import qualified Data.HashMap.Strict as HashMap
 
 -- | Builds a JSON value.
 --
--- 'JsonBuilder's are built up either with '.=' and 'Data.Monoid.<>' or from other 'ToJson' instances.
+-- 'JsonBuilder's are built up either from other 'ToJson' instances or from primitives like
+-- 'emptyObject', 'hashMap', 'vector', 'array', 'list', 'appendNull', or the unsafe functions
+-- 'unsafeAppendBS' or 'unsafeAppendUtf8Builder'.
 --
 newtype JsonBuilder = JsonBuilder { unJsonBuilder :: Utf8Builder () }
 
@@ -48,7 +50,7 @@ runBuilder :: JsonBuilder -> ByteString
 runBuilder = UB.runUtf8Builder . unJsonBuilder
 
 
----- General JSON vValue support
+---- General JSON value support
 
 -- | The class of types that can be converted to JSON.
 class ToJson a where
@@ -108,7 +110,7 @@ instance ToJson ObjectBuilder where
         unObjectBuilder ob
         UB.appendChar7 '}'
 
--- | A 'JsonBuilder' that represents the empty object.
+-- | A 'JsonBuilder' that produces the empty object.
 emptyObject :: JsonBuilder
 emptyObject = JsonBuilder $ do
     UB.appendChar7 '{'
@@ -121,6 +123,7 @@ writePair (key, value) = do
     UB.appendChar7 ':'
     unJsonBuilder $ appendJson value
 
+-- | Serialize a 'HashMap.HashMap' as a JSON object.
 {-# INLINABLE hashMap #-}
 hashMap :: ToJson a => HashMap.HashMap Text a -> JsonBuilder
 hashMap hm = JsonBuilder $ do
@@ -145,6 +148,13 @@ a .= b = ObjectBuilder go 1
         unJsonBuilder $ appendJson b
 infixr 8 .=
 
+-- | Wordy alias to '.='.
+{-# INLINE pair #-}
+pair :: ToJson a => Text -> a -> ObjectBuilder
+pair = (.=)
+infixr 8 `pair`
+
+-- | Create an 'ObjectBuilder' from a key (expressed as an 'Addr#') and a value
 {-# INLINE (.=#) #-}
 (.=#) :: ToJson a => Addr# -> a -> ObjectBuilder
 a .=# b = ObjectBuilder go 1
@@ -153,13 +163,7 @@ a .=# b = ObjectBuilder go 1
         UB.appendEscapedJsonLiteral a
         UB.appendChar7 ':'
         unJsonBuilder $ appendJson b
-
--- | Wordy alias to '.='.
-{-# INLINE pair #-}
-pair :: ToJson a => Text -> a -> ObjectBuilder
-pair = (.=)
-infixr 8 `pair`
-
+infixr 8 .=#
 
 ---- Arrays
 
@@ -172,6 +176,7 @@ array collection = JsonBuilder $ do
     unObjectBuilder $ foldMap (\e -> ObjectBuilder (unJsonBuilder $ appendJson e) 1) collection
     UB.appendChar7 ']'
 
+-- | Serialize a list to a JSON array.  This function generates faster code than 'array' but is less general.
 {-# INLINABLE list #-}
 list :: ToJson a => [a] -> JsonBuilder
 list !ls = JsonBuilder $ do
@@ -185,8 +190,7 @@ list !ls = JsonBuilder $ do
                 unJsonBuilder $ appendJson e
             UB.appendChar7 ']'
 
--- | Serialize a 'Data.Vector.Generic.Vector' as a JSON array.
--- This function generates better code than 'array', particularly for unboxed vectors.
+-- | Serialize a 'Data.Vector.Generic.Vector' to a JSON array.  This function generates faster code than 'array' but is less general.
 {-# INLINABLE vector #-}
 vector :: (GVector.Vector v a, ToJson a) => v a -> JsonBuilder
 vector !vec = JsonBuilder $ do
@@ -245,5 +249,6 @@ unsafeAppendBS bs = JsonBuilder $ UB.unsafeAppendBS bs
 unsafeAppendUtf8Builder :: Utf8Builder () -> JsonBuilder
 unsafeAppendUtf8Builder utf8b = JsonBuilder utf8b
 
+-- | Build a JSON "null".
 appendNull :: JsonBuilder
 appendNull = JsonBuilder $ UB.unsafeAppendLiteralN 4 "null"#
