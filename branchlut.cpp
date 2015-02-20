@@ -95,14 +95,12 @@ size_t u32toa_branchlut(uint32_t value, char* buffer) {
 }
 
 size_t i32toa_branchlut(int32_t value, char* buffer) {
-    size_t length = 0;
     if (value < 0) {
-        ++length;
         *buffer++ = '-';
-        value = -value;
+        return 1 + u32toa_branchlut(static_cast<uint32_t>(~value) + 1u, buffer);
+    } else {
+        return u32toa_branchlut(static_cast<uint32_t>(value), buffer);
     }
-
-    return length + u32toa_branchlut(static_cast<uint32_t>(value), buffer);
 }
 
 size_t u64toa_branchlut(uint64_t value, char* buffer) {
@@ -264,12 +262,10 @@ size_t u64toa_branchlut(uint64_t value, char* buffer) {
 }
 
 size_t i64toa_branchlut(int64_t value, char* buffer) {
-    size_t length = 0;
     if (value < 0) {
-        ++length;
         *buffer++ = '-';
-        value = -value;
+        return 1 + u64toa_branchlut(static_cast<uint64_t>(~value) + 1u, buffer);
+    } else {
+        return u64toa_branchlut(static_cast<uint64_t>(value), buffer);
     }
-
-    return length + u64toa_branchlut(static_cast<uint64_t>(value), buffer);
 }
