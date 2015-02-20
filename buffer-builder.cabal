@@ -62,7 +62,7 @@ library
   default-language: Haskell2010
   ghc-options: -O2 -Wall
 
-  c-sources: buffer.cpp
+  c-sources: buffer.cpp branchlut.cpp
   cc-options: -O2 -Wall
 
 test-suite tests
