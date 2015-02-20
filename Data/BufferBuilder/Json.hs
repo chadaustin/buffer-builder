@@ -1,11 +1,13 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE MagicHash #-}
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings, MagicHash, BangPatterns, UndecidableInstances #-}
 
+{-|
+A library for efficiently building up a valid JSON document.
+
+This module is built on top of 'Data.Utf8Builder'.
+-}
 module Data.BufferBuilder.Json
-    ( -- * JSON
+    ( -- * JsonBuilder
       ToJson (..)
     , JsonBuilder
     , ObjectBuilder
@@ -17,14 +19,13 @@ module Data.BufferBuilder.Json
     , (.=#)
     , pair
     , array
-    , list
-    , vector
     , unsafeAppendBS
     , unsafeAppendUtf8Builder
     , appendNull
     ) where
 
 import GHC.Base
+import Foreign.Storable
 import Control.Monad (when, forM_)
 import Data.BufferBuilder.Utf8 (Utf8Builder)
 import qualified Data.BufferBuilder.Utf8 as UB
@@ -32,7 +33,11 @@ import Data.ByteString (ByteString)
 import Data.Monoid
 import Data.Text (Text)
 import Data.Foldable (Foldable, foldMap)
+import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as GVector
+import qualified Data.Vector.Primitive as VP
+import qualified Data.Vector.Storable as VS
+import qualified Data.Vector.Unboxed as VU
 import qualified Data.HashMap.Strict as HashMap
 
 -- | Builds a JSON value.
@@ -176,21 +181,35 @@ array collection = JsonBuilder $ do
     unObjectBuilder $ foldMap (\e -> ObjectBuilder (unJsonBuilder $ appendJson e) 1) collection
     UB.appendChar7 ']'
 
--- | Serialize a list to a JSON array.  This function generates faster code than 'array' but is less general.
-{-# INLINABLE list #-}
-list :: ToJson a => [a] -> JsonBuilder
-list !ls = JsonBuilder $ do
-    UB.appendChar7 '['
-    case ls of
-        [] -> UB.appendChar7 ']'
-        x:xs -> do
-            unJsonBuilder $ appendJson x
-            forM_ xs $ \(!e) -> do
-                UB.appendChar7 ','
-                unJsonBuilder $ appendJson e
-            UB.appendChar7 ']'
+instance ToJson a => ToJson [a] where
+    {-# INLINABLE appendJson #-}
+    appendJson !ls = JsonBuilder $ do
+        UB.appendChar7 '['
+        case ls of
+            [] -> UB.appendChar7 ']'
+            x:xs -> do
+                unJsonBuilder $ appendJson x
+                forM_ xs $ \(!e) -> do
+                    UB.appendChar7 ','
+                    unJsonBuilder $ appendJson e
+                UB.appendChar7 ']'
 
--- | Serialize a 'Data.Vector.Generic.Vector' to a JSON array.  This function generates faster code than 'array' but is less general.
+instance ToJson a => ToJson (Vector.Vector a) where
+    {-# INLINABLE appendJson #-}
+    appendJson = vector
+
+instance (Storable a, ToJson a) => ToJson (VS.Vector a) where
+    {-# INLINABLE appendJson #-}
+    appendJson = vector
+
+instance (VP.Prim a, ToJson a) => ToJson (VP.Vector a) where
+    {-# INLINABLE appendJson #-}
+    appendJson = vector
+
+instance (GVector.Vector VU.Vector a, ToJson a) => ToJson (VU.Vector a) where
+    {-# INLINABLE appendJson #-}
+    appendJson = vector
+
 {-# INLINABLE vector #-}
 vector :: (GVector.Vector v a, ToJson a) => v a -> JsonBuilder
 vector !vec = JsonBuilder $ do
@@ -220,10 +239,6 @@ instance ToJson a => ToJson (Maybe a) where
     appendJson m = case m of
         Nothing -> JsonBuilder $ UB.unsafeAppendLiteralN 4 "null"#
         Just a -> appendJson a
-
-instance ToJson a => ToJson [a] where
-    {-# INLINE appendJson #-}
-    appendJson = list
 
 instance ToJson Text where
     {-# INLINE appendJson #-}

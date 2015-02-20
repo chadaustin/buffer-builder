@@ -19,7 +19,7 @@ module Data.BufferBuilder (
     , appendLiteral
     , unsafeAppendLiteralN
 
-    -- Appending bytes and byte strings, truncated to 7 bits
+    -- * Appending bytes and byte strings, truncated to 7 bits
     , appendByte7
     , appendChar7
     , appendBS7

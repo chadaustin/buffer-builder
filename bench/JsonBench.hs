@@ -260,9 +260,9 @@ main = do
         Just parsedUserList = Aeson.decode lazyContent
 
     defaultMain [ bgroup "vector"
-                    [ bench "vector bool" $ nf (Json.runBuilder . Json.vector) (Vector.replicate 100000 True)
-                    , bench "vector int" $ nf (Json.runBuilder . Json.vector) (Vector.replicate 100000 (1234 :: Int))
-                    , bench "vector text" $ nf (Json.runBuilder . Json.vector) (Vector.replicate 100000 ("hello world" :: Text))
+                    [ bench "vector bool" $ nf Json.encodeJson (Vector.replicate 100000 True)
+                    , bench "vector int" $ nf Json.encodeJson (Vector.replicate 100000 (1234 :: Int))
+                    , bench "vector text" $ nf Json.encodeJson (Vector.replicate 100000 ("hello world" :: Text))
                     ]
                 , bgroup "list-foldable"
                     [ bench "list-foldable bool" $ nf (Json.runBuilder . Json.array) (replicate 100000 True)
@@ -270,9 +270,9 @@ main = do
                     , bench "list-foldable text" $ nf (Json.runBuilder . Json.array) (replicate 100000 ("hello world" :: Text))
                     ]
                 , bgroup "list"
-                    [ bench "list bool" $ nf (Json.runBuilder . Json.list) (replicate 100000 True)
-                    , bench "list int" $ nf (Json.runBuilder . Json.list) (replicate 100000 (1234 :: Int))
-                    , bench "list text" $ nf (Json.runBuilder . Json.list) (replicate 100000 ("hello world" :: Text))
+                    [ bench "list bool" $ nf Json.encodeJson (replicate 100000 True)
+                    , bench "list int" $ nf Json.encodeJson (replicate 100000 (1234 :: Int))
+                    , bench "list text" $ nf Json.encodeJson (replicate 100000 ("hello world" :: Text))
                     ]
                 , bgroup "render"
                     [ bench "bufferbuilder" $ nf Json.encodeJson parsedUserList
@@ -283,7 +283,7 @@ main = do
                     , bench "bufferbuilder-addr" $ nf (fmap (Json.runBuilder . encodeUserNaively)) parsedUserList
                     ]
                 , bgroup "breakout"
-                    [ bench "Vector" $ nf (Json.runBuilder . Json.vector) (Vector.fromList $! [0..65535] :: Vector.Vector Int)
-                    , bench "Vector.Unboxed" $ nf (Json.runBuilder . Json.vector) (UnboxedVector.fromList $! [0..65535] :: UnboxedVector.Vector Int)
+                    [ bench "Vector" $ nf Json.encodeJson (Vector.fromList $! [0..65535] :: Vector.Vector Int)
+                    , bench "Vector.Unboxed" $ nf Json.encodeJson (UnboxedVector.fromList $! [0..65535] :: UnboxedVector.Vector Int)
                     ]
                 ]

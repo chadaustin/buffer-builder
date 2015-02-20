@@ -75,7 +75,7 @@ instance Arbitrary JsonValue where
         case i of
             0 -> fmap (JsonValue . array)
                 (shrink10x arbitrary :: Gen [JsonValue])
-            1 -> fmap (JsonValue . Data.BufferBuilder.Json.vector . Vector.fromList)
+            1 -> fmap (JsonValue . Vector.fromList)
                 (shrink10x arbitrary :: Gen [JsonValue])
             2 -> fmap (JsonValue . Text.pack) (arbitrary :: Gen String)
             3 -> fmap JsonValue (arbitrary :: Gen Int)
