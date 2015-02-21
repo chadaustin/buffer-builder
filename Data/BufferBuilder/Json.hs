@@ -14,7 +14,6 @@ module Data.BufferBuilder.Json
     , encodeJson
     , runBuilder
     , emptyObject
-    , hashMap
     , (.=)
     , (.=#)
     , pair
@@ -42,9 +41,10 @@ import qualified Data.HashMap.Strict as HashMap
 
 -- | Builds a JSON value.
 --
--- 'JsonBuilder's are built up either from other 'ToJson' instances or from primitives like
--- 'emptyObject', 'hashMap', 'vector', 'array', 'list', 'appendNull', or the unsafe functions
--- 'unsafeAppendBS' or 'unsafeAppendUtf8Builder'.
+-- 'JsonBuilder's are built up either from other 'ToJson' instances or
+-- from primitives like 'emptyObject', 'hashMap', 'array',
+-- 'appendNull', or the unsafe functions 'unsafeAppendBS' or
+-- 'unsafeAppendUtf8Builder'.
 --
 newtype JsonBuilder = JsonBuilder { unJsonBuilder :: Utf8Builder () }
 
@@ -128,19 +128,18 @@ writePair (key, value) = do
     UB.appendChar7 ':'
     unJsonBuilder $ appendJson value
 
--- | Serialize a 'HashMap.HashMap' as a JSON object.
-{-# INLINABLE hashMap #-}
-hashMap :: ToJson a => HashMap.HashMap Text a -> JsonBuilder
-hashMap hm = JsonBuilder $ do
-    UB.appendChar7 '{'
-    case HashMap.toList hm of
-        [] -> UB.appendChar7 '}'
-        (x:xs) -> do
-            writePair x
-            forM_ xs $ \p -> do
-                UB.appendChar7 ','
-                writePair p
-            UB.appendChar7 '}'
+instance ToJson a => ToJson (HashMap.HashMap Text a) where
+    {-# INLINABLE appendJson #-}
+    appendJson hm = JsonBuilder $ do
+        UB.appendChar7 '{'
+        case HashMap.toList hm of
+            [] -> UB.appendChar7 '}'
+            (x:xs) -> do
+                writePair x
+                forM_ xs $ \p -> do
+                    UB.appendChar7 ','
+                    writePair p
+                UB.appendChar7 '}'
 
 -- | Create an 'ObjectBuilder' from a key and a value.
 {-# INLINE (.=) #-}
