@@ -118,7 +118,7 @@ instance Monoid ObjectBuilder where
     mempty = ObjectBuilder (return ()) 0
 
     {-# INLINE mappend #-}
-    mappend a b = ObjectBuilder go 1
+    mappend a b = ObjectBuilder go $ max (needsComma a) (needsComma b)
       where
         go = do
             unObjectBuilder a

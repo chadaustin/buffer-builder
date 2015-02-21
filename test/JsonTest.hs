@@ -43,6 +43,7 @@ case_encode_object = do
     ae "{\"key\":\"value\"}" (encodeJson ("key" .= ("value" :: Text)))
     ae "{\"key\":\"value\",\"key2\":[5,6,7]}"
         (encodeJson ("key" .= ("value" :: Text) <> "key2" .= ([5,6,7] :: [Int])))
+    ae "{}" $ encodeJson $ ((mempty :: ObjectBuilder) <> mempty) <> (mempty <> mempty)
     ae "[]" (encodeJson ([] :: [Int]))
 
 case_monoid_laws :: IO ()
