@@ -7,20 +7,24 @@ A library for efficiently building up a valid JSON document.
 This module is built on top of 'Data.Utf8Builder'.
 -}
 module Data.BufferBuilder.Json
-    ( -- * JsonBuilder
+    (
+    -- * Encoding Values
       ToJson (..)
     , JsonBuilder
-    , ObjectBuilder
     , encodeJson
-    , runBuilder
+
+    -- * Objects
+    , ObjectBuilder
     , emptyObject
     , (.=)
     , (.=#)
     , pair
+
+    -- * Arrays
     , array
     , unsafeAppendBS
     , unsafeAppendUtf8Builder
-    , appendNull
+    , nullValue
     ) where
 
 import GHC.Base
@@ -41,33 +45,34 @@ import qualified Data.HashMap.Strict as HashMap
 
 -- | Builds a JSON value.
 --
--- 'JsonBuilder's are built up either from other 'ToJson' instances or
--- from primitives like 'emptyObject', 'hashMap', 'array',
--- 'appendNull', or the unsafe functions 'unsafeAppendBS' or
+-- 'Value's are built up from either 'ToJson' instances or
+-- from primitives like 'emptyObject', 'array', and 'null'.
+--
+-- In special cases, or when  or the unsafe functions 'unsafeAppendBS' or
 -- 'unsafeAppendUtf8Builder'.
 --
-newtype JsonBuilder = JsonBuilder { unJsonBuilder :: Utf8Builder () }
-
--- | Run a builder and get the resulting JSON.
--- With this function, you can use 'JsonBuilders' that were not obtained by using the 'ToJson' typeclass.
--- This is useful if you want to be able to JSON-encode the same data type in multiple ways.
-runBuilder :: JsonBuilder -> ByteString
-runBuilder = UB.runUtf8Builder . unJsonBuilder
-
+newtype JsonBuilder = JsonBuilder { utf8Builder :: Utf8Builder () }
 
 ---- General JSON value support
+
+-- | Encode a value as a 'ByteString' containing valid UTF-8-encoded JSON.
+-- The value must have a corresponding 'ToJson' instance.
+--
+-- __WARNING__: There are three cases where the 'ByteString' will not contain
+-- legal JSON:
+--
+-- * An unsafe function was used to encode a JSON value.
+-- * The root value is not an object or array, as the JSON spec requires.
+-- * An object has multiple keys with the same value.  For maximum efficiency,
+--   'ObjectBuilder' does not check key names for uniqueness, so it's possible to
+--   construct objects with duplicate keys.
+encodeJson :: ToJson a => a -> ByteString
+encodeJson = UB.runUtf8Builder . utf8Builder . appendJson
+{-# INLINE encodeJson #-}
 
 -- | The class of types that can be converted to JSON.
 class ToJson a where
     appendJson :: a -> JsonBuilder
-
--- | Convert a datum to JSON.
--- Eqivalent to
--- @
---     runBuilder . appendJson
--- @
-encodeJson :: ToJson a => a -> ByteString
-encodeJson = runBuilder . appendJson
 
 
 ---- Objects
@@ -126,7 +131,7 @@ writePair :: ToJson a => (Text, a) -> Utf8Builder ()
 writePair (key, value) = do
     UB.appendEscapedJsonText key
     UB.appendChar7 ':'
-    unJsonBuilder $ appendJson value
+    utf8Builder $ appendJson value
 
 instance ToJson a => ToJson (HashMap.HashMap Text a) where
     {-# INLINABLE appendJson #-}
@@ -149,7 +154,7 @@ a .= b = ObjectBuilder go 1
     go = do
         UB.appendEscapedJsonText a
         UB.appendChar7 ':'
-        unJsonBuilder $ appendJson b
+        utf8Builder $ appendJson b
 infixr 8 .=
 
 -- | Wordy alias to '.='.
@@ -166,7 +171,7 @@ a .=# b = ObjectBuilder go 1
     go = do
         UB.appendEscapedJsonLiteral a
         UB.appendChar7 ':'
-        unJsonBuilder $ appendJson b
+        utf8Builder $ appendJson b
 infixr 8 .=#
 
 ---- Arrays
@@ -177,7 +182,7 @@ array :: (Foldable t, ToJson a) => t a -> JsonBuilder
 array collection = JsonBuilder $ do
     UB.appendChar7 '['
     -- HACK: ObjectBuilder is not "type correct" but it has exactly the behaviour we want for this function.
-    unObjectBuilder $ foldMap (\e -> ObjectBuilder (unJsonBuilder $ appendJson e) 1) collection
+    unObjectBuilder $ foldMap (\e -> ObjectBuilder (utf8Builder $ appendJson e) 1) collection
     UB.appendChar7 ']'
 
 instance ToJson a => ToJson [a] where
@@ -187,10 +192,10 @@ instance ToJson a => ToJson [a] where
         case ls of
             [] -> UB.appendChar7 ']'
             x:xs -> do
-                unJsonBuilder $ appendJson x
+                utf8Builder $ appendJson x
                 forM_ xs $ \(!e) -> do
                     UB.appendChar7 ','
-                    unJsonBuilder $ appendJson e
+                    utf8Builder $ appendJson e
                 UB.appendChar7 ']'
 
 instance ToJson a => ToJson (Vector.Vector a) where
@@ -215,10 +220,10 @@ vector !vec = JsonBuilder $ do
     UB.appendChar7 '['
     let len = GVector.length vec
     when (len /= 0) $ do
-        unJsonBuilder $ appendJson (vec `GVector.unsafeIndex` 0)
+        utf8Builder $ appendJson (vec `GVector.unsafeIndex` 0)
         GVector.forM_ (GVector.tail vec) $ \e -> do
             UB.appendChar7 ','
-            unJsonBuilder $ appendJson e
+            utf8Builder $ appendJson e
     UB.appendChar7 ']'
 
 
@@ -264,5 +269,5 @@ unsafeAppendUtf8Builder :: Utf8Builder () -> JsonBuilder
 unsafeAppendUtf8Builder utf8b = JsonBuilder utf8b
 
 -- | Build a JSON "null".
-appendNull :: JsonBuilder
-appendNull = JsonBuilder $ UB.unsafeAppendLiteralN 4 "null"#
+nullValue :: JsonBuilder
+nullValue = JsonBuilder $ UB.unsafeAppendLiteralN 4 "null"#

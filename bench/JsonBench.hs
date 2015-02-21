@@ -265,9 +265,9 @@ main = do
                     , bench "vector text" $ nf Json.encodeJson (Vector.replicate 100000 ("hello world" :: Text))
                     ]
                 , bgroup "list-foldable"
-                    [ bench "list-foldable bool" $ nf (Json.runBuilder . Json.array) (replicate 100000 True)
-                    , bench "list-foldable int" $ nf (Json.runBuilder . Json.array) (replicate 100000 (1234 :: Int))
-                    , bench "list-foldable text" $ nf (Json.runBuilder . Json.array) (replicate 100000 ("hello world" :: Text))
+                    [ bench "list-foldable bool" $ nf (Json.encodeJson . Json.array) (replicate 100000 True)
+                    , bench "list-foldable int" $ nf (Json.encodeJson . Json.array) (replicate 100000 (1234 :: Int))
+                    , bench "list-foldable text" $ nf (Json.encodeJson . Json.array) (replicate 100000 ("hello world" :: Text))
                     ]
                 , bgroup "list"
                     [ bench "list bool" $ nf Json.encodeJson (replicate 100000 True)
@@ -279,8 +279,8 @@ main = do
                     , bench "aeson" $ nf Aeson.encode parsedUserList
                     ]
                 , bgroup "addr vs text"
-                    [ bench "bufferbuilder-text" $ nf (fmap (Json.runBuilder . Json.appendJson)) parsedUserList
-                    , bench "bufferbuilder-addr" $ nf (fmap (Json.runBuilder . encodeUserNaively)) parsedUserList
+                    [ bench "bufferbuilder-text" $ nf Json.encodeJson parsedUserList
+                    , bench "bufferbuilder-addr" $ nf (fmap (Json.encodeJson . encodeUserNaively)) parsedUserList
                     ]
                 , bgroup "breakout"
                     [ bench "Vector" $ nf Json.encodeJson (Vector.fromList $! [0..65535] :: Vector.Vector Int)
