@@ -108,29 +108,29 @@ class ToJson a where
 -- __WARNING__: 'ObjectBuilder' does not check uniqueness of object
 -- keys.  If two keys with the same value are inserted, then the
 -- resulting JSON document will be illegal.
-data ObjectBuilder = ObjectBuilder
-    { unObjectBuilder :: Utf8Builder ()
-    , needsComma :: !Int
-    }
+data ObjectBuilder = NoPair | Pair !(Utf8Builder ())
 
 instance Monoid ObjectBuilder where
     {-# INLINE mempty #-}
-    mempty = ObjectBuilder (return ()) 0
+    mempty = NoPair
 
     {-# INLINE mappend #-}
-    mappend a b = ObjectBuilder go $ max (needsComma a) (needsComma b)
-      where
-        go = do
-            unObjectBuilder a
-            when (2 == needsComma a + needsComma b) $
-                UB.appendChar7 ','
-            unObjectBuilder b
+    mappend NoPair a = a
+    mappend a NoPair = a
+    mappend (Pair a) (Pair b) = Pair $ do 
+        a
+        UB.appendChar7 ','
+        b
 
 instance ToJson ObjectBuilder where
     {-# INLINE toJson #-}
-    toJson ob = Value $ do
+    toJson NoPair = Value $ do
         UB.appendChar7 '{'
-        unObjectBuilder ob
+        UB.appendChar7 '}'
+
+    toJson (Pair a) = Value $ do
+        UB.appendChar7 '{'
+        a
         UB.appendChar7 '}'
 
 -- | A 'Value' that produces the empty object.
@@ -162,12 +162,10 @@ instance ToJson a => ToJson (HashMap.HashMap Text a) where
 -- | Create an 'ObjectBuilder' from a key and a value.
 {-# INLINE (.=) #-}
 (.=) :: ToJson a => Text -> a -> ObjectBuilder
-a .= b = ObjectBuilder go 1
-  where
-    go = do
-        UB.appendEscapedJsonText a
-        UB.appendChar7 ':'
-        utf8Builder $ toJson b
+a .= b = Pair $ do
+    UB.appendEscapedJsonText a
+    UB.appendChar7 ':'
+    utf8Builder $ toJson b
 infixr 8 .=
 
 -- | Wordy alias to '.='.
@@ -179,12 +177,10 @@ infixr 8 `pair`
 -- | Create an 'ObjectBuilder' from a key (expressed as an 'Addr#') and a value
 {-# INLINE (.=#) #-}
 (.=#) :: ToJson a => Addr# -> a -> ObjectBuilder
-a .=# b = ObjectBuilder go 1
-  where
-    go = do
-        UB.appendEscapedJsonLiteral a
-        UB.appendChar7 ':'
-        utf8Builder $ toJson b
+a .=# b = Pair $ do
+    UB.appendEscapedJsonLiteral a
+    UB.appendChar7 ':'
+    utf8Builder $ toJson b
 infixr 8 .=#
 
 ---- Arrays
@@ -195,7 +191,9 @@ array :: (Foldable t, ToJson a) => t a -> Value
 array collection = Value $ do
     UB.appendChar7 '['
     -- HACK: ObjectBuilder is not "type correct" but it has exactly the behaviour we want for this function.
-    unObjectBuilder $ foldMap (\e -> ObjectBuilder (utf8Builder $ toJson e) 1) collection
+    case foldMap (Pair . utf8Builder . toJson) collection of
+        NoPair -> return ()
+        (Pair b) -> b
     UB.appendChar7 ']'
 
 instance ToJson a => ToJson [a] where
