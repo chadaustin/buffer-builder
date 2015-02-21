@@ -15,7 +15,7 @@ data TinyRecord = TR
     }
 
 instance ToJson TinyRecord where
-    appendJson !TR{..} = appendJson $
+    toJson !TR{..} = toJson $
         "name"# .=# (9::Int)
         -- <> "number" .= number
 

@@ -59,7 +59,7 @@ case_monoid_laws = do
 data JsonValue = forall a. ToJson a => JsonValue a
 
 instance ToJson JsonValue where
-    appendJson (JsonValue a) = appendJson a
+    toJson (JsonValue a) = toJson a
 
 instance Show JsonValue where
     show jv = show $ encodeJson jv
@@ -94,8 +94,8 @@ instance Arbitrary JsonObject where
         return $ JsonObject [(Text.pack k, v) | (k, v) <- p1]
 
 instance ToJson JsonObject where
-    appendJson (JsonObject pairs) =
-        appendJson $ foldMap makePair pairs
+    toJson (JsonObject pairs) =
+        toJson $ foldMap makePair pairs
       where
         makePair (k, v) = k .= v
 

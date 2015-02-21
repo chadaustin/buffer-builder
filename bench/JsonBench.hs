@@ -178,29 +178,29 @@ instance Aeson.ToJSON User where
 --- BufferBuilder instances ---
 
 instance Json.ToJson EyeColor where
-    appendJson ec = Json.appendJson $ case ec of
+    toJson ec = Json.toJson $ case ec of
         Green -> "green" :: Text
         Blue -> "blue"
         Brown -> "brown"
 
 instance Json.ToJson Gender where
-    appendJson g = Json.appendJson $ case g of
+    toJson g = Json.toJson $ case g of
         Male -> "male" :: Text
         Female -> "female"
 
 instance Json.ToJson Fruit where
-    appendJson f = Json.appendJson $ case f of
+    toJson f = Json.toJson $ case f of
         Apple -> "apple" :: Text
         Strawberry -> "strawberry"
         Banana -> "banana"
 
 instance Json.ToJson Friend where
-    appendJson Friend{..} = Json.appendJson $
+    toJson Friend{..} = Json.toJson $
             "_id" Json..= fId
             <> "name" Json..= fName
 
 instance Json.ToJson User where
-    appendJson User{..} = Json.appendJson $
+    toJson User{..} = Json.toJson $
             "_id"# Json..=# uId
             <> "index"# Json..=# uIndex
             <> "guid"# Json..=# uGuid
@@ -224,9 +224,9 @@ instance Json.ToJson User where
             <> "greeting"# Json..=# uGreeting
             <> "favoriteFruit"# Json..=# uFavouriteFruit
 
-encodeUserNaively :: User -> Json.JsonBuilder
+encodeUserNaively :: User -> Json.Value
 encodeUserNaively User{..} =
-    Json.appendJson $
+    Json.toJson $
         "_id" Json..= uId
         <> "index" Json..= uIndex
         <> "guid" Json..= uGuid
