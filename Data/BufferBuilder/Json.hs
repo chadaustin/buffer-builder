@@ -22,9 +22,13 @@ module Data.BufferBuilder.Json
 
     -- * Arrays
     , array
+
+    -- * Null
+    , nullValue
+
+    -- * Unsafe
     , unsafeAppendBS
     , unsafeAppendUtf8Builder
-    , nullValue
     ) where
 
 import GHC.Base
@@ -43,22 +47,25 @@ import qualified Data.Vector.Storable as VS
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.HashMap.Strict as HashMap
 
--- | Builds a JSON value.
+-- | Represents a JSON value.
 --
 -- 'Value's are built up from either 'ToJson' instances or
 -- from primitives like 'emptyObject', 'array', and 'null'.
 --
--- In special cases, or when  or the unsafe functions 'unsafeAppendBS' or
--- 'unsafeAppendUtf8Builder'.
+-- In special cases, or when performance is of utmost importance, the
+-- unsafe functions 'unsafeAppendBS' and 'unsafeAppendUtf8Builder' are
+-- available.
 --
+-- Internally, Value encodes an action or sequence of actions that append
+-- JSON-encoded text to the underlying 'Utf8Builder'.
 newtype Value = Value { utf8Builder :: Utf8Builder () }
 
 ---- General JSON value support
 
--- | Encode a value as a 'ByteString' containing valid UTF-8-encoded JSON.
--- The value must have a corresponding 'ToJson' instance.
+-- | Encode a value into a 'ByteString' containing valid UTF-8-encoded JSON.
+-- The argument value must have a corresponding 'ToJson' instance.
 --
--- __WARNING__: There are three cases where the 'ByteString' will not contain
+-- __WARNING__: There are three cases where the resulting 'ByteString' may not contain
 -- legal JSON:
 --
 -- * An unsafe function was used to encode a JSON value.
@@ -70,7 +77,9 @@ encodeJson :: ToJson a => a -> ByteString
 encodeJson = UB.runUtf8Builder . utf8Builder . toJson
 {-# INLINE encodeJson #-}
 
--- | The class of types that can be converted to JSON.
+-- | The class of types that can be converted to JSON values.  See
+-- 'ObjectBuilder' for an example of writing a 'ToJson' instance for a
+-- custom data type.
 class ToJson a where
     toJson :: a -> Value
 
@@ -95,6 +104,10 @@ class ToJson a where
 --                    "id"   .= fId friend
 --                 <> "name" .= fName friend
 -- @
+--
+-- __WARNING__: 'ObjectBuilder' does not check uniqueness of object
+-- keys.  If two keys with the same value are inserted, then the
+-- resulting JSON document will be illegal.
 data ObjectBuilder = ObjectBuilder
     { unObjectBuilder :: Utf8Builder ()
     , needsComma :: !Int
