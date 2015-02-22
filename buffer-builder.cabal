@@ -39,7 +39,7 @@ description:
 
 license:             BSD3
 license-file:        LICENSE
-author:              Chad Austin
+author:              Chad Austin, Andy Friesen
 maintainer:          chad@chadaustin.me
 copyright:           IMVU Inc., Chad Austin, Andy Friesen
 category:            Data
@@ -118,7 +118,8 @@ benchmark json-bench
                , criterion
                , vector
 
-executable tinyjson
+test-suite tinyjson
+  type: exitcode-stdio-1.0
   main-is: TinyJson.hs
   hs-source-dirs: bench
   default-language: Haskell2010
@@ -132,7 +133,8 @@ executable tinyjson
                , deepseq
                , criterion
 
-executable tinyjson2
+test-suite tinyjson2
+  type: exitcode-stdio-1.0
   main-is: TinyJson2.hs
   hs-source-dirs: bench
   default-language: Haskell2010
