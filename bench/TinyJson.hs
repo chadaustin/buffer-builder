@@ -16,7 +16,7 @@ data TinyRecord = TR
 
 instance ToJson TinyRecord where
     toJson !TR{..} = toJson $
-        "name"# .=# (9::Int)
+        "name" .= (9::Int)
         -- <> "number" .= number
 
 a :: TinyRecord

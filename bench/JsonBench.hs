@@ -278,9 +278,9 @@ main = do
                     [ bench "bufferbuilder" $ nf Json.encodeJson parsedUserList
                     , bench "aeson" $ nf Aeson.encode parsedUserList
                     ]
-                , bgroup "addr vs text"
-                    [ bench "bufferbuilder-text" $ nf Json.encodeJson parsedUserList
-                    , bench "bufferbuilder-addr" $ nf (fmap (Json.encodeJson . encodeUserNaively)) parsedUserList
+                , bgroup "addr vs text keys"
+                    [ bench "addr" $ nf Json.encodeJson parsedUserList
+                    , bench "text" $ nf Json.encodeJson $ fmap encodeUserNaively parsedUserList
                     ]
                 , bgroup "breakout"
                     [ bench "Vector" $ nf Json.encodeJson (Vector.fromList $! [0..65535] :: Vector.Vector Int)

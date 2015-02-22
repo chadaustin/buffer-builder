@@ -4,13 +4,23 @@
 {-|
 A library for efficiently building up a valid JSON document.
 
-This module is built on top of 'Data.Utf8Builder'.
+The difference between "Data.BufferBuilder.Json" and the excellent
+"Data.Aeson" is that Aeson represents the JSON document as an
+in-memory tree structure before encoding it into bytes.  This module,
+on the other hand, represents each value as an action that writes its
+representation directly into the output buffer.  At the cost of
+reduced flexibility, this results in significantly improved encoding
+performance.  At the time of this writing, encoding a custom record
+type into JSON using this module was almost 5x faster than using
+Aeson.
+
+This module is built on top of "Data.Utf8Builder".
 -}
 module Data.BufferBuilder.Json
     (
     -- * Encoding Values
-      ToJson (..)
-    , Value
+      Value
+    , ToJson (..)
     , encodeJson
 
     -- * Objects
@@ -60,6 +70,16 @@ import qualified Data.HashMap.Strict as HashMap
 -- JSON-encoded text to the underlying 'Utf8Builder'.
 newtype Value = Value { utf8Builder :: Utf8Builder () }
 
+-- | The class of types that can be converted to JSON values.  See
+-- 'ObjectBuilder' for an example of writing a 'ToJson' instance for a
+-- custom data type.
+--
+-- 'ToJson' instances are provided for many common types.  For
+-- example, to create a JSON array, call 'toJson' on a list or 'Vector.Vector'.
+-- To create a JSON object, call 'toJson' on a 'HashMap.HashMap'.
+class ToJson a where
+    toJson :: a -> Value
+
 ---- General JSON value support
 
 -- | Encode a value into a 'ByteString' containing valid UTF-8-encoded JSON.
@@ -69,20 +89,13 @@ newtype Value = Value { utf8Builder :: Utf8Builder () }
 -- legal JSON:
 --
 -- * An unsafe function was used to encode a JSON value.
--- * The root value is not an object or array, as the JSON spec requires.
+-- * The root value is not an object or array, as the JSON specification requires.
 -- * An object has multiple keys with the same value.  For maximum efficiency,
 --   'ObjectBuilder' does not check key names for uniqueness, so it's possible to
 --   construct objects with duplicate keys.
 encodeJson :: ToJson a => a -> ByteString
 encodeJson = UB.runUtf8Builder . utf8Builder . toJson
 {-# INLINE encodeJson #-}
-
--- | The class of types that can be converted to JSON values.  See
--- 'ObjectBuilder' for an example of writing a 'ToJson' instance for a
--- custom data type.
-class ToJson a where
-    toJson :: a -> Value
-
 
 ---- Objects
 
@@ -135,9 +148,44 @@ instance ToJson ObjectBuilder where
 
 -- | A 'Value' that produces the empty object.
 emptyObject :: Value
-emptyObject = Value $ do
-    UB.appendChar7 '{'
-    UB.appendChar7 '}'
+emptyObject = toJson NoPair
+{-# INLINE emptyObject #-}
+
+-- | Create an 'ObjectBuilder' from a key and a value.
+(.=) :: ToJson a => Text -> a -> ObjectBuilder
+a .= b = Pair $ do
+    UB.appendEscapedJsonText a
+    UB.appendChar7 ':'
+    utf8Builder $ toJson b
+infixr 8 .=
+{-# INLINE (.=) #-}
+
+-- | Wordy alias of '.='.
+pair :: ToJson a => Text -> a -> ObjectBuilder
+pair = (.=)
+infixr 8 `pair`
+{-# INLINE pair #-}
+
+-- | Create an 'ObjectBuilder' from a key and a value.  The key is an
+-- ASCII-7, unescaped, zero-terminated 'Addr#'.
+--
+-- __WARNING__: This function is unsafe.  If the key is NOT
+-- zero-terminated, then an access violation might result.  If the key
+-- is not a sequence of unescaped ASCII characters, the resulting JSON
+-- document will be illegal.
+--
+-- This function is provided for maximum performance in the common
+-- case that object keys are ASCII-7.  It achieves performance by
+-- avoiding the CAF for a Text literal and avoiding the need to
+-- transcode UTF-16 to UTF-8 and escape.
+(.=#) :: ToJson a => Addr# -> a -> ObjectBuilder
+a .=# b = Pair $ do
+    UB.appendEscapedJsonLiteral a
+    UB.appendChar7 ':'
+    utf8Builder $ toJson b
+infixr 8 .=#
+{-# INLINE (.=#) #-}
+
 
 {-# INLINE writePair #-}
 writePair :: ToJson a => (Text, a) -> Utf8Builder ()
@@ -159,33 +207,11 @@ instance ToJson a => ToJson (HashMap.HashMap Text a) where
                     writePair p
                 UB.appendChar7 '}'
 
--- | Create an 'ObjectBuilder' from a key and a value.
-{-# INLINE (.=) #-}
-(.=) :: ToJson a => Text -> a -> ObjectBuilder
-a .= b = Pair $ do
-    UB.appendEscapedJsonText a
-    UB.appendChar7 ':'
-    utf8Builder $ toJson b
-infixr 8 .=
-
--- | Wordy alias to '.='.
-{-# INLINE pair #-}
-pair :: ToJson a => Text -> a -> ObjectBuilder
-pair = (.=)
-infixr 8 `pair`
-
--- | Create an 'ObjectBuilder' from a key (expressed as an 'Addr#') and a value
-{-# INLINE (.=#) #-}
-(.=#) :: ToJson a => Addr# -> a -> ObjectBuilder
-a .=# b = Pair $ do
-    UB.appendEscapedJsonLiteral a
-    UB.appendChar7 ':'
-    utf8Builder $ toJson b
-infixr 8 .=#
-
 ---- Arrays
 
--- | Serialize a 'Foldable' as a JSON array.
+-- | Serialize any 'Foldable' as a JSON array.  This is generally
+-- slower than directly calling 'toJson' on a list or 'Vector.Vector',
+-- but it will convert any 'Foldable' type into an array.
 {-# INLINABLE array #-}
 array :: (Foldable t, ToJson a) => t a -> Value
 array collection = Value $ do
@@ -238,6 +264,12 @@ vector !vec = Value $ do
     UB.appendChar7 ']'
 
 
+----
+
+-- | Represents a JSON "null".
+nullValue :: Value
+nullValue = Value $ UB.unsafeAppendLiteralN 4 "null"#
+
 ---- Common JSON instances
 
 instance ToJson Value where
@@ -267,6 +299,9 @@ instance ToJson Int where
     {-# INLINE toJson #-}
     toJson a = Value $ UB.appendDecimalSignedInt a
 
+
+---- Unsafe functions
+
 -- | Unsafely append a string into a JSON document.
 -- This function does /not/ escape, quote, or otherwise decorate the string in any way.
 -- This function is /unsafe/ because you can trivially use it to generate illegal JSON.
@@ -278,7 +313,3 @@ unsafeAppendBS bs = Value $ UB.unsafeAppendBS bs
 -- This function is /unsafe/ because you can trivially use it to generate illegal JSON.
 unsafeAppendUtf8Builder :: Utf8Builder () -> Value
 unsafeAppendUtf8Builder utf8b = Value utf8b
-
--- | Represents a JSON "null".
-nullValue :: Value
-nullValue = Value $ UB.unsafeAppendLiteralN 4 "null"#
