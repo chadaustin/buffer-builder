@@ -28,7 +28,6 @@ module Data.BufferBuilder.Json
     , emptyObject
     , (.=)
     , (.=#)
-    , pair
 
     -- * Arrays
     , array
@@ -160,12 +159,6 @@ a .= b = Pair $ do
 infixr 8 .=
 {-# INLINE (.=) #-}
 
--- | Wordy alias of '.='.
-pair :: ToJson a => Text -> a -> ObjectBuilder
-pair = (.=)
-infixr 8 `pair`
-{-# INLINE pair #-}
-
 -- | Create an 'ObjectBuilder' from a key and a value.  The key is an
 -- ASCII-7, unescaped, zero-terminated 'Addr#'.
 --
@@ -178,6 +171,21 @@ infixr 8 `pair`
 -- case that object keys are ASCII-7.  It achieves performance by
 -- avoiding the CAF for a Text literal and avoiding the need to
 -- transcode UTF-16 to UTF-8 and escape.
+--
+-- To use this function, the calling source file must have the
+-- MagicHash extension enabled.
+--
+-- @
+--     data Friend = Friend
+--         { fId :: !Int
+--         , fName :: !Text
+--         } deriving (Eq, Show)
+--
+--     instance ToJson Friend where
+--         toJson friend = toJson $
+--                    "id"\#   .=\# fId friend
+--                 <> "name"\# .=\# fName friend
+-- @
 (.=#) :: ToJson a => Addr# -> a -> ObjectBuilder
 a .=# b = Pair $ do
     UB.appendEscapedJsonLiteral a
