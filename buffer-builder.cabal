@@ -47,6 +47,7 @@ build-type:          Simple
 stability:           experimental
 homepage:            https://github.com/chadaustin/buffer-builder
 cabal-version:       >=1.10
+extra-source-files:  test/*.hs
 
 library
   exposed-modules:
