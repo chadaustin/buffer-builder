@@ -212,7 +212,6 @@ instance ToJson a => ToJson (HashMap.HashMap Text a) where
 -- | Serialize any 'Foldable' as a JSON array.  This is generally
 -- slower than directly calling 'toJson' on a list or 'Vector.Vector',
 -- but it will convert any 'Foldable' type into an array.
-{-# INLINABLE array #-}
 array :: (Foldable t, ToJson a) => t a -> Value
 array collection = Value $ do
     UB.appendChar7 '['
@@ -221,6 +220,7 @@ array collection = Value $ do
         NoPair -> return ()
         (Pair b) -> b
     UB.appendChar7 ']'
+{-# INLINABLE array #-}
 
 instance ToJson a => ToJson [a] where
     {-# INLINABLE toJson #-}
@@ -269,6 +269,7 @@ vector !vec = Value $ do
 -- | Represents a JSON "null".
 nullValue :: Value
 nullValue = Value $ UB.unsafeAppendLiteralN 4 "null"#
+{-# INLINE nullValue #-}
 
 ---- Common JSON instances
 
