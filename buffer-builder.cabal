@@ -3,7 +3,7 @@ version:             0.2.0.0
 synopsis:            Library for efficiently building up buffers, one piece at a time
 description:
 
-    'BufferBuilder' is an efficient library for incrementally building
+    "Data.BufferBuilder" is an efficient library for incrementally building
     up 'ByteString's, one chunk at a time.  Early benchmarks show it
     is over twice as fast as ByteString Builder, primarily because
     'BufferBuilder' is built upon an ST-style restricted monad and
@@ -15,15 +15,15 @@ description:
     its associated indirect jumps and stack traffic only occur when
     BufferBuilder is asked to append a non-strict ByteString.
     .
-    I benchmarked four major implementations and benchmarked with the buildURL benchmark:
+    I benchmarked four approaches with a URL encoding benchmark:
     .
-      * State monad, concatenating ByteStrings: __6.98 us__
+      * State monad, concatenating ByteStrings: 6.98 us
     .
-      * State monad, ByteString Builder: __2.48 us__
+      * State monad, ByteString Builder: 2.48 us
     .
-      * Crazy explicit RealWorld baton passing with unboxed state: __28.94 us__ (GHC generated really awful code for this, but see the revision history for the technique)
+      * Crazy explicit RealWorld baton passing with unboxed state: 28.94 us (GHC generated really awful code for this, but see the revision history for the technique)
     .
-      * C + FFI + ReaderT: __1.11 us__
+      * C + FFI + ReaderT: 1.11 us
     .
     Using BufferBuilder is very simple:
     .
@@ -33,7 +33,9 @@ description:
     >       BB.appendBS "http"
     >       BB.appendChar8 '/'
     >       BB.appendBS "//"
-    
+    .
+    This package also provides "Data.BufferBuilder.Utf8" for generating UTF-8 buffers
+    and "Data.BufferBuilder.Json" for encoding data structures into JSON.
 
 license:             BSD3
 license-file:        LICENSE
@@ -91,7 +93,8 @@ benchmark bench
   main-is: Bench.hs
   hs-source-dirs: bench
   default-language: Haskell2010
-  ghc-options: -O2 -Wall -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
+  ghc-options: -O2 -Wall
+  --ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
 
   build-depends: base ==4.*
                , bytestring
@@ -104,7 +107,7 @@ benchmark json-bench
   hs-source-dirs: bench
   default-language: Haskell2010
   ghc-options: -O2 -Wall
-  ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
+  --ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
   build-depends: base
                , buffer-builder
                , aeson
@@ -120,7 +123,7 @@ executable tinyjson
   hs-source-dirs: bench
   default-language: Haskell2010
   ghc-options: -O2 -Wall
-  ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
+  --ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
   build-depends: base
                , buffer-builder
                , aeson
@@ -134,7 +137,7 @@ executable tinyjson2
   hs-source-dirs: bench
   default-language: Haskell2010
   ghc-options: -O2 -Wall
-  ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
+  --ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
   build-depends: base
                , buffer-builder
                , aeson
