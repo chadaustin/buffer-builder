@@ -1,5 +1,5 @@
 name:                buffer-builder
-version:             0.2.0.0
+version:             0.2.0.1
 synopsis:            Library for efficiently building up buffers, one piece at a time
 description:
 
@@ -64,7 +64,7 @@ library
   default-language: Haskell2010
   ghc-options: -O2 -Wall
 
-  c-sources: buffer.cpp branchlut.cpp
+  c-sources: buffer.cpp branchlut.cpp branchlut.h
   cc-options: -O2 -Wall
 
 test-suite tests
