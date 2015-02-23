@@ -119,6 +119,7 @@ benchmark json-bench
                , vector
                , criterion
                , vector
+               , json-builder
 
 test-suite tinyjson
   type: exitcode-stdio-1.0

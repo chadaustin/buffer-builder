@@ -4,21 +4,18 @@
 
 module Main (main) where
 
+import Control.DeepSeq (NFData (..), force)
 import Criterion
-
 import Criterion.Main
-
+import Data.Aeson ((.:))
 import Data.Monoid ((<>))
-
+import Data.Text (Text)
+import qualified Data.Aeson as Aeson
+import qualified Data.BufferBuilder.Json as Json
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
-
-import qualified Data.BufferBuilder.Json as Json
-import           Data.Text (Text)
-import qualified Data.Aeson as Aeson
-import           Data.Aeson ((.:))
+import qualified Data.Json.Builder as JB
 import qualified Data.Vector as Vector
-import           Control.DeepSeq (NFData (..), force)
 import qualified Data.Vector.Unboxed as UnboxedVector
 
 data EyeColor = Green | Blue | Brown
@@ -224,6 +221,60 @@ instance Json.ToJson User where
             <> "greeting"# Json..=# uGreeting
             <> "favoriteFruit"# Json..=# uFavouriteFruit
 
+---- json-builder instances ----
+
+instance JB.Value EyeColor where
+    toJson ec = JB.toJson $ case ec of
+        Green -> "green" :: Text
+        Blue -> "blue"
+        Brown -> "brown"
+
+instance JB.Value Gender where
+    toJson g = JB.toJson $ case g of
+        Male -> "male" :: Text
+        Female -> "female"
+
+instance JB.Value Fruit where
+    toJson f = JB.toJson $ case f of
+        Apple -> "apple" :: Text
+        Strawberry -> "strawberry"
+        Banana -> "banana"
+
+instance JB.Value Friend where
+    toJson Friend{..} = JB.toJson $
+            ("_id" :: Text) `JB.row` fId
+            <> ("name" :: Text) `JB.row` fName
+
+instance JB.Value User where
+    toJson User{..} =
+        let t :: Text -> Text
+            t = id
+        in JB.toJson $
+               t "_id" `JB.row` uId
+            <> t "index" `JB.row` uIndex
+            <> t "guid" `JB.row` uGuid
+            <> t "isActive" `JB.row` uIsActive
+            <> t "balance" `JB.row` uBalance
+            <> t "picture" `JB.row` uPicture
+            <> t "age" `JB.row` uAge
+            <> t "eyeColor" `JB.row` uEyeColor
+            <> t "name" `JB.row` uName
+            <> t "gender" `JB.row` uGender
+            <> t "company" `JB.row` uCompany
+            <> t "email" `JB.row` uEmail
+            <> t "phone" `JB.row` uPhone
+            <> t "address" `JB.row` uAddress
+            <> t "about" `JB.row` uAbout
+            <> t "registered" `JB.row` uRegistered
+            <> t "latitude" `JB.row` uLatitude
+            <> t "longitude" `JB.row` uLongitude
+            <> t "tags" `JB.row` uTags
+            <> t "friends" `JB.row` uFriends
+            <> t "greeting" `JB.row` uGreeting
+            <> t "favoriteFruit" `JB.row` uFavouriteFruit
+
+----
+
 encodeUserNaively :: User -> Json.Value
 encodeUserNaively User{..} =
     Json.toJson $
@@ -277,6 +328,7 @@ main = do
                 , bgroup "render"
                     [ bench "bufferbuilder" $ nf Json.encodeJson parsedUserList
                     , bench "aeson" $ nf Aeson.encode parsedUserList
+                    , bench "json-builder" $ nf JB.toJsonLBS parsedUserList
                     ]
                 , bgroup "addr vs text keys"
                     [ bench "addr" $ nf Json.encodeJson parsedUserList
