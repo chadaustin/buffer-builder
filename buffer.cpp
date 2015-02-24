@@ -193,7 +193,7 @@ extern "C" void bw_append_decimal_signed_int(BufferWriter* bw, int64_t i) {
 
 extern "C" void bw_append_decimal_double(BufferWriter* bw, double d) {
     assert(bw->data);
-    grow(bw, 30); // ???
+    grow(bw, 318); // sprintf("%f", -DBL_MAX);
 
     size_t used = sprintf(reinterpret_cast<char*>(bw->data + bw->size), "%f", d);
     bw->size += used;
