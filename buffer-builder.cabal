@@ -121,6 +121,19 @@ benchmark json-bench
                , vector
                , json-builder
 
+benchmark url
+  type: exitcode-stdio-1.0
+  main-is: UrlBench.hs
+  hs-source-dirs: bench
+  default-language: Haskell2010
+  ghc-options: -O2 -Wall -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
+  build-depends: base
+               , buffer-builder
+               , bytestring
+               , http-types
+               , text
+               , criterion
+
 test-suite tinyjson
   type: exitcode-stdio-1.0
   main-is: TinyJson.hs
