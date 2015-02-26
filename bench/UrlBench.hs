@@ -128,10 +128,10 @@ renderHost' UrlHost{..} = do
     BB.appendChar8 '/'
 
     when (not $ BS.null uhUserName) $ do
-        BB.appendBS $ urlEncode False uhUserName
+        BB.appendUrlEncoded uhUserName
         when (not $ BS.null uhPasswd) $ do
             BB.appendChar8 ':'
-            BB.appendBS $ urlEncode False uhPasswd
+            BB.appendUrlEncoded uhPasswd
         BB.appendChar8 '@'
 
     BB.appendBS uhHostName
