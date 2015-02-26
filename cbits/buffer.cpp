@@ -1,48 +1,85 @@
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <assert.h>
 
 #include "branchlut.h"
-
-const size_t TRIM_THRESHOLD = 8192; // minimum number of bytes saved to trim
 
 /*
  * Append utf8, ASCII7, raw bytes, utf16
  * JSON encode utf8, ascii7, utf16
  */
 
-#if defined(__clang__)
-  #define BW_NOINLINE __attribute__((noinline))
-#elif defined(__GNUC__)
+#if defined(__clang__) || defined(__GNUC__)
   #define BW_NOINLINE __attribute__((noinline))
 #else
   #define BW_NOINLINE
 #endif
+
+#if defined(__clang__) || defined(__GNUC__)
+  #define BW_LIKELY(x) __builtin_expect(!!(x), 1)
+  #define BW_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#else
+  #define BW_LIKELY(x) x
+  #define BW_UNLIKELY(x) x
+#endif
+
+#define BW_ENSURE_CAPACITY(bw, cap)                 \
+    do {                                            \
+        if (!ensureCapacity((bw), (cap))) {         \
+            return;                                 \
+        }                                           \
+    } while (0)
+
 
 namespace {
     struct BufferWriter {
         unsigned char* data;
         size_t size;
         size_t capacity;
+
+        // invariants:
+        // if (capacity >= size), then data is non-null
+        // if (capacity == 0), then data is null, and object is dead
+
+        // Note: We mark the object dead upon growth failure in order
+        // to avoid the need to check for errors after every single
+        // append function.  The error can be raised upon the final
+        // pointer release.
     };
 
-    BW_NOINLINE void actuallyGrow(BufferWriter* bw, size_t amount) {
+    BW_NOINLINE bool actuallyGrow(BufferWriter* bw, size_t amount) {
+        if (bw->capacity == 0) {
+            // object is dead, ignore append request
+            return false;
+        }
+
         size_t newCapacity = bw->capacity;
         do {
+            // TODO: detect overflow?
             newCapacity *= 2;
         } while (newCapacity < bw->size + amount);
         
         unsigned char* newData = reinterpret_cast<unsigned char*>(realloc(bw->data, newCapacity));
-        assert(newData);
-        bw->data = newData;
-        bw->capacity = newCapacity;
+        if (newData) {
+            bw->data = newData;
+            bw->capacity = newCapacity;
+            return true;
+        } else {
+            // TODO: try smaller growth?
+            free(bw->data);
+            bw->data = 0;
+            bw->capacity = 0;
+            return false;
+        }
     }
 
-    inline void grow(BufferWriter* bw, size_t amount) {
-        if (bw->size + amount > bw->capacity) {
-            actuallyGrow(bw, amount);
+    inline bool ensureCapacity(BufferWriter* bw, size_t amount) {
+        if (BW_LIKELY(bw->size + amount <= bw->capacity)) {
+            return true;
+        } else {
+            return actuallyGrow(bw, amount);
         }
     }
 }
@@ -51,11 +88,21 @@ namespace {
 // TODO: replace assert with some other error mechanism
 
 extern "C" BufferWriter* bw_new(size_t initialCapacity) {
-    assert(initialCapacity >= 1);
+    if (!initialCapacity) {
+        initialCapacity = 1;
+    }
+
     BufferWriter* bw = reinterpret_cast<BufferWriter*>(malloc(sizeof(BufferWriter)));
-    assert(bw);
+    if (!bw) {
+        return 0;
+    }
+
     bw->data = reinterpret_cast<unsigned char*>(malloc(initialCapacity));
-    assert(bw->data);
+    if (!bw->data) {
+        free(bw);
+        return 0;
+    }
+
     bw->size = 0;
     bw->capacity = initialCapacity;
     return bw;
@@ -70,10 +117,9 @@ extern "C" size_t bw_get_size(BufferWriter* bw) {
     return bw->size;
 }
 
-extern "C" unsigned char* bw_trim_and_release_address(BufferWriter* bw) {
-    unsigned char* data = bw->data;
-    
-    if (bw->size + TRIM_THRESHOLD < bw->capacity) {
+/*
+extern "C" void bw_trim(BufferWriter* bw, size_t threshold) {
+   if (bw->size + TRIM_THRESHOLD < bw->capacity) {
         // try to shrink
         data = reinterpret_cast<unsigned char*>(realloc(data, bw->size));
         if (!data) {
@@ -82,20 +128,26 @@ extern "C" unsigned char* bw_trim_and_release_address(BufferWriter* bw) {
         }
     }
 
+}
+*/
+
+extern "C" unsigned char* bw_release_address(BufferWriter* bw) {
+    unsigned char* data = bw->data;
+
+    bw->capacity = 0;
     bw->data = 0;
-    return data;
+    return data; // null if dead
 }
 
 extern "C" void bw_append_byte(BufferWriter* bw, unsigned char byte) {
-    assert(bw->data);
-    grow(bw, 1);
+    BW_ENSURE_CAPACITY(bw, 1);
+
     bw->data[bw->size] = byte;
     bw->size += 1;
 }
 
 extern "C" void bw_append_char_utf8(BufferWriter* bw, uint32_t c) {
-    assert(bw->data);
-    grow(bw, 4);
+    BW_ENSURE_CAPACITY(bw, 4);
 
     size_t size = bw->size;
     unsigned char* data = bw->data + size;
@@ -126,8 +178,7 @@ extern "C" void bw_append_char_utf8(BufferWriter* bw, uint32_t c) {
 }
 
 extern "C" void bw_append_bs(BufferWriter* bw, size_t size, const unsigned char* data) {
-    assert(bw->data);
-    grow(bw, size);
+    BW_ENSURE_CAPACITY(bw, size);
 
     memcpy(bw->data + bw->size, data, size);
     bw->size += size;
@@ -138,15 +189,14 @@ extern "C" void bw_append_bsz(BufferWriter* bw, const unsigned char* data) {
 }
 
 extern "C" void bw_append_byte7(BufferWriter* bw, unsigned char byte) {
-    assert(bw->data);
-    grow(bw, 1);
+    BW_ENSURE_CAPACITY(bw, 1);
+
     bw->data[bw->size] = byte & 0x7F;
     bw->size += 1;
 }
 
 extern "C" void bw_append_bs7(BufferWriter* bw, size_t size, const unsigned char* data) {
-    assert(bw->data);
-    grow(bw, size);
+    BW_ENSURE_CAPACITY(bw, size);
 
     unsigned char* out = bw->data + bw->size;
     for (size_t i = 0; i < size; ++i) {
@@ -160,8 +210,7 @@ extern "C" void bw_append_bsz7(BufferWriter* bw, const unsigned char* data) {
 }
 
 extern "C" void bw_append_json_escaped(BufferWriter* bw, size_t size, const unsigned char* data) {
-    assert(bw->data);
-    grow(bw, 2 + size * 2);
+    BW_ENSURE_CAPACITY(bw, 2 + size * 2);
 
     unsigned char* dest = bw->data + bw->size;
     *dest++ = '\"';
@@ -184,16 +233,14 @@ extern "C" void bw_append_json_escaped(BufferWriter* bw, size_t size, const unsi
 }
 
 extern "C" void bw_append_decimal_signed_int(BufferWriter* bw, int64_t i) {
-    assert(bw->data);
-    grow(bw, 32); // enough
+    BW_ENSURE_CAPACITY(bw, 32); // enough
 
     unsigned used = i64toa_branchlut(i, reinterpret_cast<char*>(bw->data + bw->size));
     bw->size += used;
 }
 
 extern "C" void bw_append_decimal_double(BufferWriter* bw, double d) {
-    assert(bw->data);
-    grow(bw, 318); // sprintf("%f", -DBL_MAX);
+    BW_ENSURE_CAPACITY(bw, 318); // sprintf("%f", -DBL_MAX);
 
     size_t used = sprintf(reinterpret_cast<char*>(bw->data + bw->size), "%f", d);
     bw->size += used;
@@ -279,6 +326,7 @@ extern "C" void bw_encode_utf8(uint8_t **destp, const uint16_t *src, size_t srco
 
 extern "C" void bw_append_json_escaped_utf16(BufferWriter* bw, size_t size, unsigned short* words) {
     // TODO: handle malloc failure
+    // ideally no temp buffer would be required here.
     unsigned char* utf8 = reinterpret_cast<unsigned char*>(malloc(size * 4));
     assert(utf8);
     unsigned char* utf8end = utf8;
@@ -317,8 +365,8 @@ static const unsigned char DEC2HEX[16] = {
 };
 
 extern "C" void bw_append_url_encoded(BufferWriter* bw, size_t size, const unsigned char* data) {
-    assert(bw->data);
-    grow(bw, size * 3); // worst case
+    // worst case
+    BW_ENSURE_CAPACITY(bw, size * 3);
 
     const unsigned char* src = data;
     unsigned char* dst = bw->data + bw->size;

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, MagicHash, UnboxedTuples, BangPatterns, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings, MagicHash, UnboxedTuples, BangPatterns, GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
 
 {-|
 A library for efficiently building up a buffer of data.  When given data
@@ -54,6 +54,9 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Internal as BS
 import qualified Data.ByteString.Lazy as BSL
 import Control.Applicative (Applicative(..), pure)
+import Control.Exception (Exception, throw)
+import Control.Monad (when)
+import Data.Typeable (Typeable)
 
 import Data.Text () -- Show
 import Data.Text.Internal (Text (..))
@@ -66,7 +69,7 @@ foreign import ccall unsafe "strlen" c_strlen :: Ptr Word8 -> IO Int
 foreign import ccall unsafe "bw_new" bw_new :: Int -> IO Handle
 foreign import ccall unsafe "&bw_free" bw_free :: FunPtr (Handle -> IO ())
 foreign import ccall unsafe "bw_get_size" bw_get_size :: Handle -> IO Int
-foreign import ccall unsafe "bw_trim_and_release_address" bw_trim_and_release_address :: Handle -> IO (Ptr Word8)
+foreign import ccall unsafe "bw_release_address" bw_release_address :: Handle -> IO (Ptr Word8)
 
 foreign import ccall unsafe "bw_append_byte" bw_append_byte :: Handle -> Word8 -> IO ()
 foreign import ccall unsafe "bw_append_char_utf8" bw_append_char_utf8 :: Handle -> Char -> IO ()
@@ -118,11 +121,17 @@ withHandle :: (Handle -> IO ()) -> BufferBuilder ()
 withHandle = BB
 {-# INLINE withHandle #-}
 
+data BufferOutOfMemoryError = BufferOutOfMemoryError
+    deriving (Show, Typeable)
+instance Exception BufferOutOfMemoryError
+
 initialCapacity :: Int
 initialCapacity = 20480
 -- why 48? it's only 6 64-bit words...  yet many small strings should fit.
 -- some quantitative analysis would be good.
 -- an option to set the initial capacity would be better. :)
+
+
 
 -- | Run a sequence of 'BufferBuilder' actions and extract the resulting
 -- buffer as a 'BS.ByteString'.
@@ -132,10 +141,20 @@ runBufferBuilder = unsafeDupablePerformIO . runBufferBuilderIO initialCapacity
 runBufferBuilderIO :: Int -> BufferBuilder () -> IO BS.ByteString
 runBufferBuilderIO !capacity !(BB bw) = do
     handle <- bw_new capacity
+    when (handle == nullPtr) $ do
+        throw BufferOutOfMemoryError
+    
     handleFP <- newForeignPtr bw_free handle
     () <- bw handle
+
+    -- FFI doesn't support returning multiple arguments, so we need
+    -- two calls: one for the size and the other to release the
+    -- pointer.
     size <- bw_get_size handle
-    src <- bw_trim_and_release_address handle
+    src <- bw_release_address handle
+
+    when (src == nullPtr) $ do
+        throw BufferOutOfMemoryError
 
     borrowed <- newForeignPtr finalizerFree src
     let bs = BS.fromForeignPtr borrowed 0 size
