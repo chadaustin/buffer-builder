@@ -38,9 +38,11 @@ data UrlHost = UrlHost
    the 'UnparsedQuery' constructor is instead used to encode a URL whose query encoding is
    unknown.
 -}
+data QueryPair = QueryPair !BS.ByteString !BS.ByteString
+     deriving (Show, Ord, Eq)
 data Query
     = UnparsedQuery !BS.ByteString
-    | ParsedQuery [(BS.ByteString, BS.ByteString)]
+    | ParsedQuery [QueryPair]
       deriving (Show, Ord, Eq)
                
 {- | Symbolic URL type.
@@ -101,7 +103,7 @@ toBuilder Url{..} =
     renderQuery (SJust (UnparsedQuery q)) = char '?' <> toBB q
     renderQuery (SJust (ParsedQuery pairs)) = char '?' <> interc (char '&') (map renderPair pairs)
 
-    renderPair (k, v) = escapeString k <> char '=' <> escapeString v
+    renderPair (QueryPair k v) = escapeString k <> char '=' <> escapeString v
 
     renderHash h = case h of
         SNothing -> mempty
@@ -141,8 +143,8 @@ renderHost' UrlHost{..} = do
         
     BB.appendChar8 '/'
 
-renderPair' :: (BS.ByteString, BS.ByteString) -> BB.BufferBuilder ()
-renderPair' (key, value) = do
+renderPair' :: QueryPair -> BB.BufferBuilder ()
+renderPair' (QueryPair key value) = do
     BB.appendUrlEncoded key
     BB.appendChar8 '='
     BB.appendUrlEncoded value
@@ -203,7 +205,11 @@ main = do
     let url = Url
             { urlHead = FullyQualified "http" host
             , urlPath = ["service", "one", "two", "three"]
-            , urlQuery = SJust (ParsedQuery [("limit", "30"), ("next", "123456"), ("previous", "987654")])
+            , urlQuery = SJust (ParsedQuery
+                                  [ QueryPair "limit" "30"
+                                  , QueryPair "next" "123456"
+                                  , QueryPair "previous" "987654"
+                                  ])
             , urlHash = SJust "anchor"
             }
 

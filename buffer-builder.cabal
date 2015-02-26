@@ -64,6 +64,8 @@ library
 
   default-language: Haskell2010
   ghc-options: -O2 -Wall
+  ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
+
   hs-source-dirs: src
   c-sources: cbits/buffer.cpp cbits/branchlut.cpp
   install-includes: cbits/branchlut.h
