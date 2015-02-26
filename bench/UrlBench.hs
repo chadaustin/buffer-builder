@@ -211,8 +211,8 @@ main = do
     BSC.putStrLn $ "bufferbuilder: " <> viaBufferBuilder url
 
     defaultMain [ bgroup "render url"
-                    [ bench "bytestring builder" $ nf toByteString url
-                    , bench "bufferbuilder" $ nf viaBufferBuilder url
+                    [ bench "bufferbuilder" $ nf viaBufferBuilder url
+                    , bench "bytestring builder" $ nf toByteString url
                     --, bench "vector text" $ nf Json.encodeJson (Vector.replicate 100000 ("hello world" :: Text))
                     ]
                 ]
