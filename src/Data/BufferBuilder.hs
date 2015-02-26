@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, MagicHash, UnboxedTuples, BangPatterns, GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings, MagicHash, BangPatterns, RecordWildCards, DeriveDataTypeable #-}
 
 {-|
 A library for efficiently building up a buffer of data.  When given data
@@ -10,6 +10,10 @@ module Data.BufferBuilder (
     -- * The BufferBuilder Monad
       BufferBuilder
     , runBufferBuilder
+
+    -- * Optional configuration
+    , Options(..)
+    , runBufferBuilderWithOptions
 
     -- * Appending bytes and byte strings
     , appendByte
@@ -69,6 +73,7 @@ foreign import ccall unsafe "strlen" c_strlen :: Ptr Word8 -> IO Int
 foreign import ccall unsafe "bw_new" bw_new :: Int -> IO Handle
 foreign import ccall unsafe "&bw_free" bw_free :: FunPtr (Handle -> IO ())
 foreign import ccall unsafe "bw_get_size" bw_get_size :: Handle -> IO Int
+foreign import ccall unsafe "bw_trim" bw_trim :: Handle -> IO ()
 foreign import ccall unsafe "bw_release_address" bw_release_address :: Handle -> IO (Ptr Word8)
 
 foreign import ccall unsafe "bw_append_byte" bw_append_byte :: Handle -> Word8 -> IO ()
@@ -125,27 +130,36 @@ data BufferOutOfMemoryError = BufferOutOfMemoryError
     deriving (Show, Typeable)
 instance Exception BufferOutOfMemoryError
 
-initialCapacity :: Int
-initialCapacity = 20480
--- why 48? it's only 6 64-bit words...  yet many small strings should fit.
--- some quantitative analysis would be good.
--- an option to set the initial capacity would be better. :)
+data Options = Options
+    { initialCapacity :: !Int
+    , trimFinalBuffer :: !Bool
+    }
 
-
+defaultOptions :: Options
+defaultOptions = Options
+    { initialCapacity = 128 -- some quantitative data would be great
+    , trimFinalBuffer = False
+    }
 
 -- | Run a sequence of 'BufferBuilder' actions and extract the resulting
 -- buffer as a 'BS.ByteString'.
 runBufferBuilder :: BufferBuilder () -> BS.ByteString
-runBufferBuilder = unsafeDupablePerformIO . runBufferBuilderIO initialCapacity
+runBufferBuilder = runBufferBuilderWithOptions defaultOptions
 
-runBufferBuilderIO :: Int -> BufferBuilder () -> IO BS.ByteString
-runBufferBuilderIO !capacity !(BB bw) = do
-    handle <- bw_new capacity
+runBufferBuilderWithOptions :: Options -> BufferBuilder () -> BS.ByteString
+runBufferBuilderWithOptions options = unsafeDupablePerformIO . runBufferBuilderIO options
+
+runBufferBuilderIO :: Options-> BufferBuilder () -> IO BS.ByteString
+runBufferBuilderIO !Options{..} !(BB bw) = do
+    handle <- bw_new initialCapacity
     when (handle == nullPtr) $ do
         throw BufferOutOfMemoryError
     
     handleFP <- newForeignPtr bw_free handle
     () <- bw handle
+
+    when trimFinalBuffer $ do
+        bw_trim handle
 
     -- FFI doesn't support returning multiple arguments, so we need
     -- two calls: one for the size and the other to release the

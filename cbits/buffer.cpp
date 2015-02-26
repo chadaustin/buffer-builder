@@ -117,19 +117,18 @@ extern "C" size_t bw_get_size(BufferWriter* bw) {
     return bw->size;
 }
 
-/*
-extern "C" void bw_trim(BufferWriter* bw, size_t threshold) {
-   if (bw->size + TRIM_THRESHOLD < bw->capacity) {
+extern "C" void bw_trim(BufferWriter* bw) {
+   if (bw->size < bw->capacity) {
         // try to shrink
-        data = reinterpret_cast<unsigned char*>(realloc(data, bw->size));
-        if (!data) {
+        unsigned char* data = reinterpret_cast<unsigned char*>(realloc(bw->data, bw->size));
+        if (data) {
+            bw->data = data;
+        } else {
             // no problem
-            data = bw->data;
         }
     }
 
 }
-*/
 
 extern "C" unsigned char* bw_release_address(BufferWriter* bw) {
     unsigned char* data = bw->data;
