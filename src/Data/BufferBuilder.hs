@@ -72,8 +72,8 @@ type Handle = Ptr Handle'
 foreign import ccall unsafe "strlen" c_strlen :: Ptr Word8 -> IO Int
 foreign import ccall unsafe "bw_new" bw_new :: Int -> IO Handle
 foreign import ccall unsafe "&bw_free" bw_free :: FunPtr (Handle -> IO ())
-foreign import ccall unsafe "bw_get_size" bw_get_size :: Handle -> IO Int
 foreign import ccall unsafe "bw_trim" bw_trim :: Handle -> IO ()
+foreign import ccall unsafe "bw_get_size" bw_get_size :: Handle -> IO Int
 foreign import ccall unsafe "bw_release_address" bw_release_address :: Handle -> IO (Ptr Word8)
 
 foreign import ccall unsafe "bw_append_byte" bw_append_byte :: Handle -> Word8 -> IO ()
