@@ -141,11 +141,11 @@ renderHost' UrlHost{..} = do
         
     BB.appendChar8 '/'
 
-renderPair :: (BS.ByteString, BS.ByteString) -> BB.BufferBuilder ()
-renderPair (key, value) = do
-    BB.appendBS $ urlEncode False key
+renderPair' :: (BS.ByteString, BS.ByteString) -> BB.BufferBuilder ()
+renderPair' (key, value) = do
+    BB.appendUrlEncoded key
     BB.appendChar8 '='
-    BB.appendBS $ urlEncode False value
+    BB.appendUrlEncoded value
     
 render :: Url -> BB.BufferBuilder ()
 render Url{..} = do
@@ -158,13 +158,13 @@ render Url{..} = do
         Absolute -> BB.appendChar8 '/'
         Relative -> return ()
 
-    case map (urlEncode False) urlPath of
+    case urlPath of
         [] -> return ()
         (x:xs) -> do
-            BB.appendBS x
+            BB.appendUrlEncoded x
             forM_ xs $ \ps -> do
                 BB.appendChar8 '/'
-                BB.appendBS ps
+                BB.appendUrlEncoded ps
 
     case urlQuery of
         SNothing -> return ()
@@ -176,10 +176,10 @@ render Url{..} = do
             case pairs of
                 [] -> return ()
                 (x:xs) -> do
-                    renderPair x
+                    renderPair' x
                     forM_ xs $ \pair -> do
                         BB.appendChar8 '&'
-                        renderPair pair
+                        renderPair' pair
 
 
     case urlHash of
