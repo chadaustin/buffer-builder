@@ -59,8 +59,8 @@ data UrlHead = FullyQualified !Protocol !UrlHost
 data Url = Url
     { urlHead     :: !UrlHead
     , urlPath     :: ![PathPiece]
-    , urlQuery    :: !(Maybe Query)
-    , urlHash     :: !(Maybe Hash)
+    , urlQuery    :: !(SMaybe Query)
+    , urlHash     :: !(SMaybe Hash)
     } deriving (Eq, Ord, Show)
 
 
@@ -96,16 +96,16 @@ toBuilder Url{..} =
     renderPath [] = mempty
     renderPath path = interc (char '/') (map escapeString path)
 
-    renderQuery :: Maybe Query -> BSB.Builder
-    renderQuery Nothing = mempty
-    renderQuery (Just (UnparsedQuery q)) = char '?' <> toBB q
-    renderQuery (Just (ParsedQuery pairs)) = char '?' <> interc (char '&') (map renderPair pairs)
+    renderQuery :: SMaybe Query -> BSB.Builder
+    renderQuery SNothing = mempty
+    renderQuery (SJust (UnparsedQuery q)) = char '?' <> toBB q
+    renderQuery (SJust (ParsedQuery pairs)) = char '?' <> interc (char '&') (map renderPair pairs)
 
     renderPair (k, v) = escapeString k <> char '=' <> escapeString v
 
     renderHash h = case h of
-        Nothing -> mempty
-        Just hash -> char '#' <> toBB hash
+        SNothing -> mempty
+        SJust hash -> char '#' <> toBB hash
 
     renderHostName hostName hnPort
         | 0 /= hnPort = toBB hostName <> char ':' <> BSB.intDec (fromIntegral hnPort)
@@ -133,10 +133,12 @@ renderHost' UrlHost{..} = do
         BB.appendChar8 '@'
 
     BB.appendBS uhHostName
-    when (uhPort /= 0) $ do
+    if (uhPort /= 0) then do
         BB.appendChar8 ':'
         BB.appendDecimalSignedInt (fromIntegral uhPort)
-
+    else
+        return ()
+        
     BB.appendChar8 '/'
 
 renderPair :: (BS.ByteString, BS.ByteString) -> BB.BufferBuilder ()
@@ -165,11 +167,11 @@ render Url{..} = do
                 BB.appendBS ps
 
     case urlQuery of
-        Nothing -> return ()
-        (Just (UnparsedQuery q)) -> do
+        SNothing -> return ()
+        (SJust (UnparsedQuery q)) -> do
             BB.appendChar8 '?'
             BB.appendBS q
-        (Just (ParsedQuery pairs)) -> do
+        (SJust (ParsedQuery pairs)) -> do
             BB.appendChar8 '?'
             case pairs of
                 [] -> return ()
@@ -181,8 +183,8 @@ render Url{..} = do
 
 
     case urlHash of
-        Nothing -> return ()
-        (Just h) -> do
+        SNothing -> return ()
+        (SJust h) -> do
             BB.appendChar8 '#'
             BB.appendBS h
 
@@ -201,8 +203,8 @@ main = do
     let url = Url
             { urlHead = FullyQualified "http" host
             , urlPath = ["service", "one", "two", "three"]
-            , urlQuery = Just (ParsedQuery [("limit", "30"), ("next", "123456"), ("previous", "987654")])
-            , urlHash = Just "anchor"
+            , urlQuery = SJust (ParsedQuery [("limit", "30"), ("next", "123456"), ("previous", "987654")])
+            , urlHash = SJust "anchor"
             }
 
     BSC.putStrLn $ "bytestring builder: " <> toByteString url
