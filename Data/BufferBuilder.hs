@@ -50,8 +50,7 @@ import Foreign.Marshal.Alloc
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Internal as BS
 import qualified Data.ByteString.Lazy as BSL
-import Control.Monad.Reader
-import Control.Applicative (Applicative)
+import Control.Applicative (Applicative(..), pure)
 
 import Data.Text () -- Show
 import Data.Text.Internal (Text (..))
@@ -84,17 +83,34 @@ foreign import ccall unsafe "bw_append_json_escaped_utf16" bw_append_json_escape
 -- | BufferBuilder is the type of a monadic action that appends to an implicit,
 -- growable buffer.  Use 'runBufferBuilder' to extract the resulting
 -- buffer as a 'BS.ByteString'.  
-newtype BufferBuilder a = BB (ReaderT Handle IO a)
-    deriving (Functor, Applicative, Monad, MonadReader Handle)
+newtype BufferBuilder a = BB (Handle -> IO a)
+    --deriving (Applicative, Monad, MonadReader Handle)
 
-inBW :: IO a -> BufferBuilder a
-inBW = BB . lift
-{-# INLINE inBW #-}
+unBB :: BufferBuilder a -> (Handle -> IO a)
+unBB (BB a) = a
+
+instance Functor BufferBuilder where
+    {-# INLINE fmap #-}
+    fmap f (BB a) = BB $ \h -> fmap f (a h)
+
+instance Applicative BufferBuilder where
+    {-# INLINE pure #-}
+    pure = BB . const . pure
+
+    {-# INLINE (<*>) #-}
+    (BB f) <*> (BB a) = BB $ \h -> (f h) <*> (a h)
+
+instance Monad BufferBuilder where
+    {-# INLINE return #-}
+    return = BB . const . return
+
+    {-# INLINE (>>=) #-}
+    (BB lhs) >>= next = BB $ \h -> do
+        a <- lhs h
+        unBB (next a) h
 
 withHandle :: (Handle -> IO ()) -> BufferBuilder ()
-withHandle action = do
-    h <- ask
-    inBW $ action h
+withHandle = BB
 {-# INLINE withHandle #-}
 
 initialCapacity :: Int
@@ -112,7 +128,7 @@ runBufferBuilderIO :: Int -> BufferBuilder () -> IO BS.ByteString
 runBufferBuilderIO !capacity !(BB bw) = do
     handle <- bw_new capacity
     handleFP <- newForeignPtr bw_free handle
-    () <- runReaderT bw handle
+    () <- bw handle
     size <- bw_get_size handle
     src <- bw_trim_and_release_address handle
 
