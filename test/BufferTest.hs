@@ -33,6 +33,20 @@ case_append_literals = do
             appendLiteral "bar"#
     assertEqual "matches" "foobar" result
 
+case_append_url_encoded_safe :: Assertion
+case_append_url_encoded_safe = do
+    let safe = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+    let result = runBufferBuilder $ do
+            appendUrlEncoded safe
+    assertEqual "matches" safe result
+
+case_append_url_encoded_unsafe :: Assertion
+case_append_url_encoded_unsafe = do
+    let safe = "\0\1 /\\$%"
+    let result = runBufferBuilder $ do
+            appendUrlEncoded safe
+    assertEqual "matches" "%00%01%20%2f%5c%24%25" result
+
 prop_match_intDec :: Int -> Bool
 prop_match_intDec i = runBufferBuilder (appendDecimalSignedInt i) == (BSC.pack $ show i)
 

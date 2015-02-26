@@ -278,7 +278,9 @@ extern "C" void bw_encode_utf8(uint8_t **destp, const uint16_t *src, size_t srco
 }
 
 extern "C" void bw_append_json_escaped_utf16(BufferWriter* bw, size_t size, unsigned short* words) {
+    // TODO: handle malloc failure
     unsigned char* utf8 = reinterpret_cast<unsigned char*>(malloc(size * 4));
+    assert(utf8);
     unsigned char* utf8end = utf8;
 
     bw_encode_utf8(&utf8end, words, 0, size);
@@ -286,4 +288,51 @@ extern "C" void bw_append_json_escaped_utf16(BufferWriter* bw, size_t size, unsi
     bw_append_json_escaped(bw, utf8end - utf8, utf8);
 
     free(utf8);
+}
+
+static const unsigned char UNRESERVED[256] = {
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,1,1,0,
+    1,1,1,1, 1,1,1,1, 1,1,0,0, 0,0,0,0,
+    
+    0,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
+    1,1,1,1, 1,1,1,1, 1,1,1,0, 0,0,0,1,
+    0,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
+    1,1,1,1, 1,1,1,1, 1,1,1,0, 0,0,1,0,
+    
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+    
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0
+};
+
+static const unsigned char DEC2HEX[16] = {
+    '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'
+};
+
+extern "C" void bw_append_url_encoded(BufferWriter* bw, size_t size, const unsigned char* data) {
+    assert(bw->data);
+    grow(bw, size * 3); // worst case
+
+    const unsigned char* src = data;
+    unsigned char* dst = bw->data + bw->size;
+    while (size--) {
+        unsigned char c = *src++;
+        if (UNRESERVED[c]) {
+            *dst++ = c;
+        } else {
+            dst[0] = '%';
+            dst[1] = DEC2HEX[c >> 4];
+            dst[2] = DEC2HEX[c & 0xF];
+            dst += 3;
+        }
+    }
+
+    bw->size = dst - bw->data;
 }

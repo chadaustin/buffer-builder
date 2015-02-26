@@ -38,6 +38,9 @@ module Data.BufferBuilder (
     , appendEscapedJson
     , appendEscapedJsonLiteral
     , appendEscapedJsonText
+
+    -- * URL percent-encoding
+    , appendUrlEncoded
     ) where
 
 import GHC.Base
@@ -79,6 +82,8 @@ foreign import ccall unsafe "bw_append_decimal_double" bw_append_decimal_double 
 
 foreign import ccall unsafe "bw_append_json_escaped" bw_append_json_escaped :: Handle -> Int -> Ptr Word8 -> IO ()
 foreign import ccall unsafe "bw_append_json_escaped_utf16" bw_append_json_escaped_utf16 :: Handle -> Int -> Ptr Word16 -> IO ()
+
+foreign import ccall unsafe "bw_append_url_encoded" bw_append_url_encoded :: Handle -> Int -> Ptr Word8 -> IO ()
 
 -- | BufferBuilder is the type of a monadic action that appends to an implicit,
 -- growable buffer.  Use 'runBufferBuilder' to extract the resulting
@@ -281,3 +286,9 @@ appendEscapedJsonText !(Text arr ofs len) =
     in withHandle $ \h ->
         bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# byteArray) `plusPtr` ofs)
 {-# INLINE appendEscapedJsonText #-}
+
+appendUrlEncoded :: BS.ByteString -> BufferBuilder ()
+appendUrlEncoded !(BS.PS (ForeignPtr addr _) offset len) =
+    withHandle $ \h ->
+        bw_append_url_encoded h len (plusPtr (Ptr addr) offset)
+{-# INLINE appendUrlEncoded #-}
