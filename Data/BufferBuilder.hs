@@ -83,10 +83,10 @@ foreign import ccall unsafe "bw_append_json_escaped_utf16" bw_append_json_escape
 -- | BufferBuilder is the type of a monadic action that appends to an implicit,
 -- growable buffer.  Use 'runBufferBuilder' to extract the resulting
 -- buffer as a 'BS.ByteString'.  
-newtype BufferBuilder a = BB (Handle -> IO a)
+newtype BufferBuilder a = BB (Addr# -> IO a)
     --deriving (Applicative, Monad, MonadReader Handle)
 
-unBB :: BufferBuilder a -> (Handle -> IO a)
+unBB :: BufferBuilder a -> (Addr# -> IO a)
 unBB (BB a) = a
 
 instance Functor BufferBuilder where
@@ -95,14 +95,14 @@ instance Functor BufferBuilder where
 
 instance Applicative BufferBuilder where
     {-# INLINE pure #-}
-    pure = BB . const . pure
+    pure v = BB $ \_ -> pure v
 
     {-# INLINE (<*>) #-}
     (BB f) <*> (BB a) = BB $ \h -> (f h) <*> (a h)
 
 instance Monad BufferBuilder where
     {-# INLINE return #-}
-    return = BB . const . return
+    return v = BB $ \_ -> return v
 
     {-# INLINE (>>=) #-}
     (BB lhs) >>= next = BB $ \h -> do
@@ -110,7 +110,7 @@ instance Monad BufferBuilder where
         unBB (next a) h
 
 withHandle :: (Handle -> IO ()) -> BufferBuilder ()
-withHandle = BB
+withHandle a = BB $ \p -> a (Ptr p)
 {-# INLINE withHandle #-}
 
 initialCapacity :: Int
@@ -126,9 +126,9 @@ runBufferBuilder = unsafeDupablePerformIO . runBufferBuilderIO initialCapacity
 
 runBufferBuilderIO :: Int -> BufferBuilder () -> IO BS.ByteString
 runBufferBuilderIO !capacity !(BB bw) = do
-    handle <- bw_new capacity
+    handle@(Ptr ha) <- bw_new capacity
     handleFP <- newForeignPtr bw_free handle
-    () <- bw handle
+    () <- bw ha
     size <- bw_get_size handle
     src <- bw_trim_and_release_address handle
 
