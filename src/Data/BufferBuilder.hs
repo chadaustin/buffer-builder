@@ -320,6 +320,10 @@ appendEscapedJsonText !(Text arr ofs len) =
         bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# byteArray) `plusPtr` ofs)
 {-# INLINE appendEscapedJsonText #-}
 
+-- | Append a percent-encoded ByteString.  All characters except for
+-- alphanumerics, -, ., _, and ~ will be encoded.  The string produced
+-- by URL encoding is guaranteed ASCII-7 and thus valid UTF-8.
+-- Moreover, it is not required to be JSON-escaped.
 appendUrlEncoded :: BS.ByteString -> BufferBuilder ()
 appendUrlEncoded !(BS.PS (ForeignPtr addr _) offset len) =
     withHandle $ \h ->
