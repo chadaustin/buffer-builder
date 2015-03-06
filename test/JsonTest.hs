@@ -46,6 +46,10 @@ case_encode_object = do
     ae "{}" $ encodeJson $ ((mempty :: ObjectBuilder) <> mempty) <> (mempty <> mempty)
     ae "[]" (encodeJson ([] :: [Int]))
 
+case_encode_object_with_custom_typeclasses :: IO ()
+case_encode_object_with_custom_typeclasses = do
+    ae "{\"key\":\"value\"}" $ encodeJson $ ("key" :: Text) `row` ("value" :: Text)
+
 case_monoid_laws :: IO ()
 case_monoid_laws = do
     -- TODO QuickCheck

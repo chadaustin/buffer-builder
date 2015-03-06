@@ -23,11 +23,16 @@ module Data.BufferBuilder.Json
     , ToJson (..)
     , encodeJson
 
+    -- * Encoding Strings
+    , JsonString
+    , ToJsonString (..)
+
     -- * Objects
     , ObjectBuilder
     , emptyObject
     , (.=)
     , (.=#)
+    , row
 
     -- * Arrays
     , array
@@ -96,6 +101,17 @@ encodeJson :: ToJson a => a -> ByteString
 encodeJson = UB.runUtf8Builder . utf8Builder . toJson
 {-# INLINE encodeJson #-}
 
+---- String
+
+-- | Represents a JSON string.
+newtype JsonString = JsonString { unJsonString :: Utf8Builder () }
+
+-- | The class of types that can be converted to JSON strings.  Any
+-- type that provides ToJsonString also provides ToJson, and thus can
+-- be used as JSON values.
+class ToJson a => ToJsonString a where
+    toJsonString :: a -> JsonString
+
 ---- Objects
 
 -- | Builds a JSON object.
@@ -149,6 +165,16 @@ instance ToJson ObjectBuilder where
 emptyObject :: Value
 emptyObject = toJson NoPair
 {-# INLINE emptyObject #-}
+
+-- | Create an ObjectBuilder from an arbitrary key and value.  The key can be any
+-- type with a 'ToJsonString' instance.
+row :: (ToJsonString k, ToJson v) => k -> v -> ObjectBuilder
+row k v = Pair $ do
+    unJsonString $ toJsonString k
+    UB.appendChar7 ':'
+    utf8Builder $ toJson v
+infixr 8 `row`
+{-# INLINE row #-}
 
 -- | Create an 'ObjectBuilder' from a key and a value.
 (.=) :: ToJson a => Text -> a -> ObjectBuilder
@@ -298,7 +324,7 @@ instance ToJson a => ToJson (Maybe a) where
 
 instance ToJson Text where
     {-# INLINE toJson #-}
-    toJson txt = Value $ UB.appendEscapedJsonText txt
+    toJson text = Value $ UB.appendEscapedJsonText text
 
 instance ToJson Double where
     {-# INLINE toJson #-}
@@ -307,6 +333,16 @@ instance ToJson Double where
 instance ToJson Int where
     {-# INLINE toJson #-}
     toJson a = Value $ UB.appendDecimalSignedInt a
+
+instance ToJsonString JsonString where
+    toJsonString = id
+
+instance ToJson JsonString where
+    toJson = Value . unJsonString
+
+instance ToJsonString Text where
+    {-# INLINE toJsonString #-}
+    toJsonString text = JsonString $ UB.appendEscapedJsonText text
 
 
 ---- Unsafe functions
