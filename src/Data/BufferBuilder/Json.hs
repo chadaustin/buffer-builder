@@ -41,8 +41,12 @@ module Data.BufferBuilder.Json
     , nullValue
 
     -- * Unsafe
-    , unsafeAppendBS
+    , unsafeValueUtf8Builder
+    , unsafeStringUtf8Builder
+
+    -- * Deprecated
     , unsafeAppendUtf8Builder
+    , unsafeAppendBS
     ) where
 
 import GHC.Base
@@ -67,7 +71,7 @@ import qualified Data.HashMap.Strict as HashMap
 -- from primitives like 'emptyObject', 'array', and 'null'.
 --
 -- In special cases, or when performance is of utmost importance, the
--- unsafe functions 'unsafeAppendBS' and 'unsafeAppendUtf8Builder' are
+-- unsafe functions 'unsafeAppendUtf8Builder' are
 -- available.
 --
 -- Internally, Value encodes an action or sequence of actions that append
@@ -347,14 +351,25 @@ instance ToJsonString Text where
 
 ---- Unsafe functions
 
--- | Unsafely append a string into a JSON document.
--- This function does /not/ escape, quote, or otherwise decorate the string in any way.
+-- | Unsafely convert a 'Utf8Builder' into a JSON value.
+-- This function does not escape, quote, or decorate the string in any way.
 -- This function is /unsafe/ because you can trivially use it to generate illegal JSON.
+unsafeValueUtf8Builder :: Utf8Builder () -> Value
+unsafeValueUtf8Builder = Value
+
+-- | Unsafely convert a 'Utf8Builder' into a JSON string.
+-- This function does not escape, quote, or decorate the string in any way.
+-- This function is /unsafe/ because you can trivially use it to generate illegal JSON.
+unsafeStringUtf8Builder :: Utf8Builder () -> JsonString
+unsafeStringUtf8Builder = JsonString
+
+
+---- Deprecated
+
+{-# DEPRECATED unsafeAppendBS "Use unsafeValueUtf8Builder or unsafeStringUtf8Builder instead" #-}
 unsafeAppendBS :: ByteString -> Value
 unsafeAppendBS bs = Value $ UB.unsafeAppendBS bs
 
--- | Unsafely append a 'Utf8Builder' into a JSON document.
--- This function does not escape, quote, or decorate the string in any way.
--- This function is /unsafe/ because you can trivially use it to generate illegal JSON.
+{-# DEPRECATED unsafeAppendUtf8Builder "Use unsafeValueUtf8Builder or unsafeStringUtf8Builder instead" #-}
 unsafeAppendUtf8Builder :: Utf8Builder () -> Value
-unsafeAppendUtf8Builder utf8b = Value utf8b
+unsafeAppendUtf8Builder = unsafeValueUtf8Builder

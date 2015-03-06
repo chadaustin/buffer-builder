@@ -11,6 +11,7 @@ import Test.Tasty.QuickCheck
 import Data.Monoid ((<>), Monoid (mconcat, mempty))
 import Data.String (IsString (..))
 import Data.BufferBuilder.Json
+import qualified Data.BufferBuilder.Utf8 as BBU
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as JsonParse
 import qualified Data.ByteString as BS
@@ -46,9 +47,27 @@ case_encode_object = do
     ae "{}" $ encodeJson $ ((mempty :: ObjectBuilder) <> mempty) <> (mempty <> mempty)
     ae "[]" (encodeJson ([] :: [Int]))
 
+data CustomThing = CustomThing
+
+encodeCustomThing :: CustomThing -> BBU.Utf8Builder ()
+encodeCustomThing _ = do
+    BBU.appendChar7 '"'
+    BBU.appendBS7 "foo"
+    BBU.appendChar7 '/'
+    BBU.appendBS7 "bar"
+    BBU.appendChar7 '/'
+    BBU.appendBS7 "baz"
+    BBU.appendChar7 '"'
+
+instance ToJson CustomThing where
+    toJson = unsafeValueUtf8Builder . encodeCustomThing
+instance ToJsonString CustomThing where
+    toJsonString = unsafeStringUtf8Builder . encodeCustomThing
+
 case_encode_object_with_custom_typeclasses :: IO ()
 case_encode_object_with_custom_typeclasses = do
     ae "{\"key\":\"value\"}" $ encodeJson $ ("key" :: Text) `row` ("value" :: Text)
+    ae "{\"foo/bar/baz\":\"foo/bar/baz\"}" $ encodeJson $ CustomThing `row` CustomThing
 
 case_monoid_laws :: IO ()
 case_monoid_laws = do
