@@ -226,13 +226,13 @@ infixr 8 .=#
 
 
 {-# INLINE writePair #-}
-writePair :: ToJson a => (Text, a) -> Utf8Builder ()
+writePair :: (ToJsonString k, ToJson v) => (k, v) -> Utf8Builder ()
 writePair (key, value) = do
-    UB.appendEscapedJsonText key
+    unJsonString $ toJsonString key
     UB.appendChar7 ':'
     utf8Builder $ toJson value
 
-instance ToJson a => ToJson (HashMap.HashMap Text a) where
+instance (ToJsonString k, ToJson v) => ToJson (HashMap.HashMap k v) where
     {-# INLINABLE toJson #-}
     toJson hm = Value $ do
         UB.appendChar7 '{'
