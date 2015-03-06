@@ -31,6 +31,9 @@ module Data.BufferBuilder.Utf8 (
     , appendBS7
     , appendLiteral7
 
+    -- * URL percent-encoding
+    , appendUrlEncoded
+
     -- * Printing numbers
     , appendDecimalSignedInt
     , appendDecimalDouble
@@ -41,6 +44,7 @@ module Data.BufferBuilder.Utf8 (
     , appendEscapedJsonText
 
     -- * Unsafe append operations
+    , unsafeAppendBufferBuilder
     , unsafeAppendByte
     , unsafeAppendChar8
     , unsafeAppendLiteral
@@ -112,6 +116,15 @@ appendLiteral7 addr = Utf8Builder $ BB.appendLiteral7 addr
 {-# INLINE appendLiteral7 #-}
 
 
+-- URL percent-encoding
+
+-- | Directly calls 'BB.appendUrlEncoded'.  The output from URL
+-- percent-encoding is guaranteed to be valid UTF-8.
+appendUrlEncoded :: ByteString -> Utf8Builder ()
+appendUrlEncoded = Utf8Builder . BB.appendUrlEncoded
+{-# INLINE appendUrlEncoded #-}
+
+
 -- Printing numbers
 
 appendDecimalSignedInt :: Int -> Utf8Builder ()
@@ -138,6 +151,11 @@ appendEscapedJsonText txt = Utf8Builder $ BB.appendEscapedJsonText txt
 
 
 -- Unsafe
+
+-- | Directly append a BufferBuilder into the UTF-8 code stream.  Incorrect
+-- use of this function can result in invalid UTF-8.
+unsafeAppendBufferBuilder :: BufferBuilder () -> Utf8Builder ()
+unsafeAppendBufferBuilder = Utf8Builder
 
 -- | Directly append a byte into the UTF-8 code stream.  Incorrect use of
 -- this function can result in invalid UTF-8.
