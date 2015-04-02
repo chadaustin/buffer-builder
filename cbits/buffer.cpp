@@ -87,9 +87,6 @@ namespace {
     }
 }
 
-// assumes malloc will not fail
-// TODO: replace assert with some other error mechanism
-
 extern "C" BufferWriter* bw_new(size_t initialCapacity) {
     if (!initialCapacity) {
         initialCapacity = 1;
