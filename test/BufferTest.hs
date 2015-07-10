@@ -47,6 +47,18 @@ case_append_url_encoded_unsafe = do
             appendUrlEncoded safe
     assertEqual "matches" "%00%01%20%2f%5c%24%25" result
 
+case_query_size :: Assertion
+case_query_size = do
+    let ((f, s), result) = runBufferBuilder' $ do
+            appendBS "foo"
+            first <- currentLength
+            appendBS "bar"
+            second <- currentLength
+            return (first, second)
+    assertEqual "first size" 3 f
+    assertEqual "second size" 6 s
+    assertEqual "result" "foobar" result
+
 prop_match_intDec :: Int -> Bool
 prop_match_intDec i = runBufferBuilder (appendDecimalSignedInt i) == (BSC.pack $ show i)
 

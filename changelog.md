@@ -1,7 +1,12 @@
+0.2.3.0
+
+* Add the ability to query the current buffer size
+* Add the ability to return a value from a BufferBuilder
+
 0.2.2.2
 
-* Add the ability to percent-encode directly into a Utf8Builder.
-* Add Utf8Builder.unsafeAppendBufferBuilder.
+* Add the ability to percent-encode directly into a Utf8Builder
+* Add Utf8Builder.unsafeAppendBufferBuilder
 
 0.2.2.0
 

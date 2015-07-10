@@ -10,10 +10,15 @@ module Data.BufferBuilder (
     -- * The BufferBuilder Monad
       BufferBuilder
     , runBufferBuilder
+    , runBufferBuilder'
 
     -- * Optional configuration
     , Options(..)
     , runBufferBuilderWithOptions
+    , runBufferBuilderWithOptions'
+
+    -- * Query current state
+    , currentLength
 
     -- * Appending bytes and byte strings
     , appendByte
@@ -122,7 +127,7 @@ instance Monad BufferBuilder where
         a <- lhs h
         unBB (next a) h
 
-withHandle :: (Handle -> IO ()) -> BufferBuilder ()
+withHandle :: (Handle -> IO a) -> BufferBuilder a
 withHandle = BB
 {-# INLINE withHandle #-}
 
@@ -143,20 +148,28 @@ defaultOptions = Options
 
 -- | Run a sequence of 'BufferBuilder' actions and extract the resulting
 -- buffer as a 'BS.ByteString'.
-runBufferBuilder :: BufferBuilder () -> BS.ByteString
-runBufferBuilder = runBufferBuilderWithOptions defaultOptions
+runBufferBuilder :: BufferBuilder a -> BS.ByteString
+runBufferBuilder = snd . runBufferBuilder'
 
-runBufferBuilderWithOptions :: Options -> BufferBuilder () -> BS.ByteString
-runBufferBuilderWithOptions options = unsafeDupablePerformIO . runBufferBuilderIO options
+-- | Run a sequence of 'BufferBuilder' actions and extract the resulting
+-- buffer as a 'BS.ByteString'.  Also returns the BufferBuilder's result.
+runBufferBuilder' :: BufferBuilder a -> (a, BS.ByteString)
+runBufferBuilder' = runBufferBuilderWithOptions' defaultOptions
 
-runBufferBuilderIO :: Options-> BufferBuilder () -> IO BS.ByteString
+runBufferBuilderWithOptions :: Options -> BufferBuilder a -> BS.ByteString
+runBufferBuilderWithOptions options = snd . runBufferBuilderWithOptions' options
+
+runBufferBuilderWithOptions' :: Options -> BufferBuilder a -> (a, BS.ByteString)
+runBufferBuilderWithOptions' options = unsafeDupablePerformIO . runBufferBuilderIO options
+
+runBufferBuilderIO :: Options -> BufferBuilder a -> IO (a, BS.ByteString)
 runBufferBuilderIO !Options{..} !(BB bw) = do
     handle <- bw_new initialCapacity
     when (handle == nullPtr) $ do
         throw BufferOutOfMemoryError
     
     handleFP <- newForeignPtr bw_free handle
-    () <- bw handle
+    rv <- bw handle
 
     when trimFinalBuffer $ do
         bw_trim handle
@@ -173,7 +186,11 @@ runBufferBuilderIO !Options{..} !(BB bw) = do
     borrowed <- newForeignPtr finalizerFree src
     let bs = BS.fromForeignPtr borrowed 0 size
     touchForeignPtr handleFP
-    return bs
+    return (rv, bs)
+
+-- | Reads current length of BufferBuilder
+currentLength :: BufferBuilder Int
+currentLength = withHandle bw_get_size
 
 -- | Append a single byte to the output buffer.  To append multiple bytes in sequence and
 -- avoid redundant bounds checks, consider using 'appendBS', 'appendLiteral', or 'unsafeAppendLiteralN'.
