@@ -188,7 +188,7 @@ runBufferBuilderIO !Options{..} !(BB bw) = do
     touchForeignPtr handleFP
     return (rv, bs)
 
--- | Reads current length of BufferBuilder
+-- | Reads current length of BufferBuilder.  If memory allocation has failed at any point, this returns zero.
 currentLength :: BufferBuilder Int
 currentLength = withHandle bw_get_size
 
