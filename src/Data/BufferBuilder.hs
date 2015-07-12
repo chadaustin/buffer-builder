@@ -17,7 +17,8 @@ module Data.BufferBuilder (
     , runBufferBuilderWithOptions
     , runBufferBuilderWithOptions'
 
-    -- * Query current state
+    -- * Query builder
+    , calculateLength
     , currentLength
 
     -- * Appending bytes and byte strings
@@ -76,6 +77,7 @@ type Handle = Ptr Handle'
 
 foreign import ccall unsafe "strlen" c_strlen :: Ptr Word8 -> IO Int
 foreign import ccall unsafe "bw_new" bw_new :: Int -> IO Handle
+foreign import ccall unsafe "bw_new_length_calculator" bw_new_length_calculator :: IO Handle
 foreign import ccall unsafe "&bw_free" bw_free :: FunPtr (Handle -> IO ())
 foreign import ccall unsafe "bw_trim" bw_trim :: Handle -> IO ()
 foreign import ccall unsafe "bw_get_size" bw_get_size :: Handle -> IO Int
@@ -100,7 +102,7 @@ foreign import ccall unsafe "bw_append_url_encoded" bw_append_url_encoded :: Han
 
 -- | BufferBuilder is the type of a monadic action that appends to an implicit,
 -- growable buffer.  Use 'runBufferBuilder' to extract the resulting
--- buffer as a 'BS.ByteString'.  
+-- buffer as a 'BS.ByteString'.
 newtype BufferBuilder a = BB (Handle -> IO a)
     --deriving (Applicative, Monad, MonadReader Handle)
 
@@ -167,7 +169,7 @@ runBufferBuilderIO !Options{..} !(BB bw) = do
     handle <- bw_new initialCapacity
     when (handle == nullPtr) $ do
         throw BufferOutOfMemoryError
-    
+
     handleFP <- newForeignPtr bw_free handle
     rv <- bw handle
 
@@ -188,7 +190,23 @@ runBufferBuilderIO !Options{..} !(BB bw) = do
     touchForeignPtr handleFP
     return (rv, bs)
 
+-- | Given a BufferBuilder, calculate its length.  This runs every BufferBuilder action
+-- in a mode that simply accumulates the number of bytes without copying any data into an
+-- output buffer.
+calculateLength :: BufferBuilder a -> Int
+calculateLength !(BB bw) = unsafeDupablePerformIO $ do
+    handle <- bw_new_length_calculator
+    when (handle == nullPtr) $ do
+        throw BufferOutOfMemoryError
+
+    handleFP <- newForeignPtr bw_free handle
+    _ <- bw handle
+    size <- bw_get_size handle
+    touchForeignPtr handleFP
+    return size
+
 -- | Reads current length of BufferBuilder.  If memory allocation has failed at any point, this returns zero.
+-- In the future, currentLength may throw an exception upon memory allocation failure.
 currentLength :: BufferBuilder Int
 currentLength = withHandle bw_get_size
 
@@ -245,7 +263,7 @@ appendLiteral addr =
 -- Per byte, this is the fastest append function.  It amounts to a C function call
 -- with two constant arguments.  The C function checks to see if it needs to grow
 -- the buffer and then it simply calls memcpy.
--- 
+--
 -- __WARNING__: passing an incorrect length value is likely to cause an access
 -- violation or worse.
 unsafeAppendLiteralN :: Int -> Addr# -> BufferBuilder ()

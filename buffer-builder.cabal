@@ -28,7 +28,7 @@ description:
     Using BufferBuilder is very simple:
     .
     > import qualified Data.BufferBuilder as BB
-    > 
+    >
     > let byteString = BB.runBufferBuilder $ do
     >       BB.appendBS "http"
     >       BB.appendChar8 '/'
@@ -85,6 +85,7 @@ test-suite tests
                , tasty-hunit
                , tasty-th
                , tasty-quickcheck
+               , quickcheck-instances
                , HUnit
                , text
                , vector
