@@ -1,3 +1,7 @@
+0.2.4.0
+
+* Add the ability to calculate the output length of a BufferBuilder without allocating or writing bytes
+
 0.2.3.0
 
 * Add the ability to query the current buffer size
