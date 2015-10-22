@@ -81,13 +81,8 @@ test-suite tests
   build-depends: base ==4.*
                , buffer-builder
                , text
-               , tasty
-               , tasty-hunit
-               , tasty-th
-               , tasty-quickcheck
                , quickcheck-instances
-               , HUnit
-               , text
+               , HTF
                , vector
                , bytestring
                , attoparsec

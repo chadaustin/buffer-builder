@@ -1,13 +1,12 @@
+{-# OPTIONS_GHC -F -pgmF htfpp #-}
 {-# LANGUAGE MagicHash, OverloadedStrings, TemplateHaskell, ExistentialQuantification #-}
 
-module JsonTest where
+module JsonTest (htf_thisModulesTests) where
+
+import Test.Framework
 
 import Data.Foldable (foldMap)
-import Test.Tasty
-import Test.Tasty.TH
 import qualified Data.Attoparsec.ByteString as Atto
-import Test.Tasty.HUnit
-import Test.Tasty.QuickCheck
 import Data.Monoid ((<>), Monoid (mconcat, mempty))
 import Data.String (IsString (..))
 import Data.BufferBuilder.Json
@@ -19,28 +18,28 @@ import           Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
-ae :: (IsString a, Show a, Eq a) => String -> a -> Assertion
-ae expected actual = assertEqual expected (fromString expected) actual
+ae :: (IsString a, Show a, Eq a) => String -> a -> IO ()
+ae expected actual = assertEqual (fromString expected) actual
 
-case_encode_int :: IO ()
-case_encode_int = do
+test_encode_int :: IO ()
+test_encode_int = do
     ae "-42" (encodeJson (-42::Int))
     ae "9" (encodeJson (9::Int))
 
-case_encode_bool :: IO ()
-case_encode_bool = do
+test_encode_bool :: IO ()
+test_encode_bool = do
     ae "true" (encodeJson True)
     ae "false" (encodeJson False)
 
-case_encode_text :: IO ()
-case_encode_text = do
+test_encode_text :: IO ()
+test_encode_text = do
     ae "\"hello\"" (encodeJson ("hello" :: Text))
     ae "\"\"" (encodeJson ("" :: Text))
 
     ae "\"\\\"\\\\\\n\\r\\t\"" (encodeJson (fromString ['\"', '\\', '\n', '\r', '\t'] :: Text))
 
-case_encode_object :: IO ()
-case_encode_object = do
+test_encode_object :: IO ()
+test_encode_object = do
     ae "{\"key\":\"value\"}" (encodeJson ("key" .= ("value" :: Text)))
     ae "{\"key\":\"value\",\"key2\":[5,6,7]}"
         (encodeJson ("key" .= ("value" :: Text) <> "key2" .= ([5,6,7] :: [Int])))
@@ -64,21 +63,21 @@ instance ToJson CustomThing where
 instance ToJsonString CustomThing where
     toJsonString = unsafeStringUtf8Builder . encodeCustomThing
 
-case_encode_object_with_custom_typeclasses :: IO ()
-case_encode_object_with_custom_typeclasses = do
+test_encode_object_with_custom_typeclasses :: IO ()
+test_encode_object_with_custom_typeclasses = do
     ae "{\"key\":\"value\"}" $ encodeJson $ ("key" :: Text) `row` ("value" :: Text)
     ae "{\"foo/bar/baz\":\"foo/bar/baz\"}" $ encodeJson $ CustomThing `row` CustomThing
 
-case_monoid_laws :: IO ()
-case_monoid_laws = do
+test_monoid_laws :: IO ()
+test_monoid_laws = do
     -- TODO QuickCheck
     let a = "key" .= ("value" :: Text)
         b = "key2" .= (999 :: Int)
         c = "key3" .= ([1,2,3] :: [Int])
-    assertEqual "Left identity" (encodeJson a) (encodeJson (mempty <> a))
-    assertEqual "Right identity" (encodeJson a) (encodeJson (a <> mempty))
-    assertEqual "Associativity" (encodeJson (a <> (b <> c))) (encodeJson ((a <> b) <> c))
-    assertEqual "mconcat" (encodeJson (mconcat [a, b, c])) (encodeJson (a <> b <> c))
+    assertEqual {-Left identity-} (encodeJson a) (encodeJson (mempty <> a))
+    assertEqual {-Right identity-} (encodeJson a) (encodeJson (a <> mempty))
+    assertEqual {-Associativity-} (encodeJson (a <> (b <> c))) (encodeJson ((a <> b) <> c))
+    assertEqual {-mconcat-} (encodeJson (mconcat [a, b, c])) (encodeJson (a <> b <> c))
 
 data JsonValue = forall a. ToJson a => JsonValue a
 
@@ -137,9 +136,3 @@ prop_always_produces_legal_json jv =
     case decodeJsonFragment $ encodeJson jv :: Maybe Aeson.Value of
         Just _ -> True
         Nothing -> False
-
-tests :: TestTree
-tests = $(testGroupGenerator)
-
-main :: IO ()
-main = defaultMain tests

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MagicHash, DeriveGeneric #-}
 
 module Main (main) where
 
@@ -10,6 +10,7 @@ import Criterion.Main
 import Data.Aeson ((.:))
 import Data.Monoid ((<>))
 import Data.Text (Text)
+import GHC.Generics (Generic)
 import qualified Data.Aeson as Aeson
 import qualified Data.BufferBuilder.Json as Json
 import qualified Data.ByteString as BS
@@ -19,11 +20,11 @@ import qualified Data.Vector as Vector
 import qualified Data.Vector.Unboxed as UnboxedVector
 
 data EyeColor = Green | Blue | Brown
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 data Gender = Male | Female
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 data Fruit = Apple | Strawberry | Banana
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 data Friend = Friend
     { fId :: !Int
     , fName :: !Text

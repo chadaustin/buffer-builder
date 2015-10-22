@@ -1,17 +1,12 @@
-{-# LANGUAGE TemplateHaskell, OverloadedStrings, MagicHash #-}
+{-# OPTIONS_GHC -F -pgmF htfpp #-}
 
-import Test.Tasty
+module Main where
 
-import qualified BufferTest
-import qualified Utf8Test
-import qualified JsonTest
+import Test.Framework
 
-allTests :: TestTree
-allTests = testGroup "all tests"
-    [ BufferTest.tests
-    , Utf8Test.tests
-    , JsonTest.tests
-    ]
+import {-@ HTF_TESTS @-} BufferTest
+import {-@ HTF_TESTS @-} Utf8Test
+import {-@ HTF_TESTS @-} JsonTest
 
 main :: IO ()
-main = defaultMain allTests
+main = htfMain htf_importedTests
