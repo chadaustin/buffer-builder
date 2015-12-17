@@ -16,7 +16,7 @@ test_append_bytes = do
             appendChar8 'f'
             appendChar8 'o'
             appendChar8 'o'
-    assertEqual "fooz" result
+    assertEqual "foo" result
 
 test_append_string :: IO ()
 test_append_string = do
