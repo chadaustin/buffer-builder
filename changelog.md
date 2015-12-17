@@ -1,3 +1,7 @@
+0.2.4.1
+
+* Fix a bug with appendEscapedJsonText and Text buffers with nonzero offsets. (Thanks Joe Lee!)
+
 0.2.4.0
 
 * Add the ability to calculate the output length of a BufferBuilder without allocating or writing bytes
