@@ -352,7 +352,7 @@ appendEscapedJsonText :: Text -> BufferBuilder ()
 appendEscapedJsonText !(Text arr ofs len) =
     let byteArray = aBA arr
     in withHandle $ \h ->
-        bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# byteArray) `plusPtr` ofs)
+        bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# byteArray) `plusPtr` (2 * ofs))
 {-# INLINE appendEscapedJsonText #-}
 
 -- | Append a percent-encoded ByteString.  All characters except for
