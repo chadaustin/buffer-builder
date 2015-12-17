@@ -10,6 +10,12 @@ import qualified Data.ByteString.Char8 as BSC
 import Data.BufferBuilder
 import Test.QuickCheck.Instances ()
 
+import qualified Data.Text as T
+import qualified Data.Text.Internal as TI
+
+getTextOffset :: T.Text -> Int
+getTextOffset (TI.Text _array offset _length) = offset
+
 test_append_bytes :: IO ()
 test_append_bytes = do
     let result = runBufferBuilder $ do
@@ -26,6 +32,24 @@ test_append_string = do
             appendChar8 'o'
             appendBS "bar"
     assertEqual "foobar" result
+
+test_append_json_escaped_text_with_zero_offset :: IO ()
+test_append_json_escaped_text_with_zero_offset = do
+    let t = "foo"
+    assertEqual 0 (getTextOffset t)
+    let result = runBufferBuilder $ do
+            appendEscapedJsonText t
+            appendBS "bar"
+    assertEqual "\"foo\"bar" result
+
+test_append_json_escaped_text_with_nonzero_offset :: IO ()
+test_append_json_escaped_text_with_nonzero_offset = do
+    let [_, t] = T.split (== '-') "some_prefix-foo"
+    assertNotEqual 0 (getTextOffset t)
+    let result = runBufferBuilder $ do
+            appendEscapedJsonText t
+            appendBS "bar"
+    assertEqual "\"foo\"bar" result
 
 test_append_literals :: IO ()
 test_append_literals = do
