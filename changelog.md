@@ -1,3 +1,7 @@
+0.2.4.2
+
+* Include test.json in sdist so benchmarks can be run from Hackage.  (Thanks Ryan Scott!)
+
 0.2.4.1
 
 * Fix a bug with appendEscapedJsonText and Text buffers with nonzero offsets. (Thanks Joe Lee!)
