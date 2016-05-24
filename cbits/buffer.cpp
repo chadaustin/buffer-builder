@@ -37,6 +37,10 @@
 
 
 namespace {
+    static const unsigned char DEC2HEX[16] = {
+        '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'
+    };
+
     struct BufferWriter {
         unsigned char* end; // the most commonly-accessed field
         unsigned char* capacity;
@@ -269,7 +273,13 @@ inline size_t count_escaped_json_length(size_t size, const unsigned char* data) 
             case '\t': rv += 2; break;
             case '\\': rv += 2; break;
             case '\"': rv += 2; break;
-            default:   rv += 1; break;
+            default:
+                if (data[i] <= 0x1F) {
+                    rv += 6;
+                } else {
+                    rv += 1;
+                }
+                break;
         }
     }
     return rv;
@@ -289,7 +299,19 @@ extern "C" void bw_append_json_escaped(BufferWriter* bw, size_t size, const unsi
             case '\t': *dest++ = '\\'; *dest++ = 't';  break;
             case '\\': *dest++ = '\\'; *dest++ = '\\'; break;
             case '\"': *dest++ = '\\'; *dest++ = '\"'; break;
-            default:   *dest++ = data[i];              break;
+            default:
+                unsigned char d = data[i];
+                if (d <= 0x1F) {
+                    *dest++ = '\\';
+                    *dest++ = 'u';
+                    *dest++ = '0';
+                    *dest++ = '0';
+                    *dest++ = DEC2HEX[d >> 4];
+                    *dest++ = DEC2HEX[d & 0xF];
+                } else {
+                    *dest++ = d;
+                }
+                break;
         }
         ++i;
     }
@@ -434,10 +456,6 @@ static const unsigned char UNRESERVED[256] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0
-};
-
-static const unsigned char DEC2HEX[16] = {
-    '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'
 };
 
 inline size_t count_url_encoded_length(size_t size, const unsigned char* data) {

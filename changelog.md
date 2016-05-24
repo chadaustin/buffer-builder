@@ -1,3 +1,7 @@
+0.2.4.3
+
+* Fix a bug where control characters (codepoints 1 through 31) were not being escaped.
+
 0.2.4.2
 
 * Include test.json in sdist so benchmarks can be run from Hackage.  (Thanks Ryan Scott!)
