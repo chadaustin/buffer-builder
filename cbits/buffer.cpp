@@ -286,7 +286,7 @@ inline size_t count_escaped_json_length(size_t size, const unsigned char* data) 
 }
 
 extern "C" void bw_append_json_escaped(BufferWriter* bw, size_t size, const unsigned char* data) {
-    BW_ENSURE_CAPACITY(bw, 2 + size * 2, count_escaped_json_length(size, data));
+    BW_ENSURE_CAPACITY(bw, 2 + size * 6, count_escaped_json_length(size, data));
 
     unsigned char* dest = bw->end;
     *dest++ = '\"';
