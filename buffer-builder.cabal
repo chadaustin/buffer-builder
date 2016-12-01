@@ -1,5 +1,5 @@
 name:                buffer-builder
-version:             0.2.4.3
+version:             0.2.4.4
 synopsis:            Library for efficiently building up buffers, one piece at a time
 description:
 

@@ -1,3 +1,7 @@
+0.2.4.4
+
+* Add 'stdc++' as an explicit library dependency.  (Thanks Rob Dockins!)
+
 0.2.4.3
 
 * Fix a bug where control characters (codepoints 1 through 31) were not being escaped.
