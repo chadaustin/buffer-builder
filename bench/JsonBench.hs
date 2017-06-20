@@ -129,14 +129,25 @@ instance Aeson.ToJSON EyeColor where
         Green -> "green" :: Text
         Blue -> "blue"
         Brown -> "brown"
+    toEncoding ec = Aeson.toEncoding $ case ec of
+        Green -> "green" :: Text
+        Blue -> "blue"
+        Brown -> "brown"
 
 instance Aeson.ToJSON Gender where
     toJSON g = Aeson.toJSON $ case g of
         Male -> "male" :: Text
         Female -> "female"
+    toEncoding g = Aeson.toEncoding $ case g of
+        Male -> "male" :: Text
+        Female -> "female"
 
 instance Aeson.ToJSON Fruit where
     toJSON f = Aeson.toJSON $ case f of
+        Apple -> "apple" :: Text
+        Banana -> "banana"
+        Strawberry -> "strawberry"
+    toEncoding f = Aeson.toEncoding $ case f of
         Apple -> "apple" :: Text
         Banana -> "banana"
         Strawberry -> "strawberry"
@@ -146,6 +157,10 @@ instance Aeson.ToJSON Friend where
         [ "id" Aeson..= fId
         , "name" Aeson..= fName
         ]
+    toEncoding Friend {..} = Aeson.pairs
+        ( "id" Aeson..= fId
+        <> "name" Aeson..= fName
+        )
 
 instance Aeson.ToJSON User where
     toJSON User{..} = Aeson.object
@@ -172,7 +187,30 @@ instance Aeson.ToJSON User where
         , "greeting" Aeson..= uGreeting
         , "favoriteFruit" Aeson..= uFavouriteFruit
         ]
-
+    toEncoding User{..} = Aeson.pairs
+        ( "_id" Aeson..= uId
+        <> "index" Aeson..= uIndex
+        <> "guid" Aeson..= uGuid
+        <> "isActive" Aeson..= uIsActive
+        <> "balance" Aeson..= uBalance
+        <> "picture" Aeson..= uPicture
+        <> "age" Aeson..= uAge
+        <> "eyeColor" Aeson..= uEyeColor
+        <> "name" Aeson..= uName
+        <> "gender" Aeson..= uGender
+        <> "company" Aeson..= uCompany
+        <> "email" Aeson..= uEmail
+        <> "phone" Aeson..= uPhone
+        <> "address" Aeson..= uAddress
+        <> "about" Aeson..= uAbout
+        <> "registered" Aeson..= uRegistered
+        <> "latitude" Aeson..= uLatitude
+        <> "longitude" Aeson..= uLongitude
+        <> "tags" Aeson..= uTags
+        <> "friends" Aeson..= uFriends
+        <> "greeting" Aeson..= uGreeting
+        <> "favoriteFruit" Aeson..= uFavouriteFruit
+        )
 --- BufferBuilder instances ---
 
 instance Json.ToJson EyeColor where
@@ -329,6 +367,7 @@ main = do
                 , bgroup "render"
                     [ bench "bufferbuilder" $ nf Json.encodeJson parsedUserList
                     , bench "aeson" $ nf Aeson.encode parsedUserList
+                    , bench "aeson-value" $ nf (Aeson.encode . Aeson.toJSON) parsedUserList
                     , bench "json-builder" $ nf JB.toJsonLBS parsedUserList
                     ]
                 , bgroup "addr vs text keys"
