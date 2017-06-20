@@ -2,3 +2,4 @@
 /dist/
 cabal.sandbox.config
 /.HTF/
+/.stack-work/
