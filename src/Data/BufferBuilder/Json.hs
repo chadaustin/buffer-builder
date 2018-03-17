@@ -55,7 +55,8 @@ import Control.Monad (when, forM_)
 import Data.BufferBuilder.Utf8 (Utf8Builder)
 import qualified Data.BufferBuilder.Utf8 as UB
 import Data.ByteString (ByteString)
-import Data.Monoid
+import Data.Monoid hiding ((<>))
+import Data.Semigroup
 import Data.Text (Text)
 import Data.Foldable (Foldable, foldMap)
 import qualified Data.Vector as Vector
