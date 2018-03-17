@@ -142,17 +142,21 @@ class ToJson a => ToJsonString a where
 -- resulting JSON document will be illegal.
 data ObjectBuilder = NoPair | Pair !(Utf8Builder ())
 
+instance Semigroup ObjectBuilder where
+    {-# INLINE (<>) #-}
+    NoPair <> a = a
+    a <> NoPair = a
+    (Pair a) <> (Pair b) = Pair $ do
+        a
+        UB.appendChar7 ','
+        b
+
 instance Monoid ObjectBuilder where
     {-# INLINE mempty #-}
     mempty = NoPair
 
     {-# INLINE mappend #-}
-    mappend NoPair a = a
-    mappend a NoPair = a
-    mappend (Pair a) (Pair b) = Pair $ do 
-        a
-        UB.appendChar7 ','
-        b
+    mappend = (<>)
 
 instance ToJson ObjectBuilder where
     {-# INLINE toJson #-}

@@ -1,3 +1,7 @@
+0.2.4.5
+
+* Add Semigroup instance for ObjectBuilder
+
 0.2.4.4
 
 * Add 'stdc++' as an explicit library dependency.  (Thanks Rob Dockins!)
