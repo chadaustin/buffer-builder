@@ -55,7 +55,8 @@ import Control.Monad (when, forM_)
 import Data.BufferBuilder.Utf8 (Utf8Builder)
 import qualified Data.BufferBuilder.Utf8 as UB
 import Data.ByteString (ByteString)
-import Data.Monoid
+import Data.Monoid hiding ((<>))
+import Data.Semigroup
 import Data.Text (Text)
 import Data.Foldable (Foldable, foldMap)
 import qualified Data.Vector as Vector
@@ -142,17 +143,21 @@ class ToJson a => ToJsonString a where
 -- resulting JSON document will be illegal.
 data ObjectBuilder = NoPair | Pair !(Utf8Builder ())
 
+instance Semigroup ObjectBuilder where
+    {-# INLINE (<>) #-}
+    NoPair <> a = a
+    a <> NoPair = a
+    (Pair a) <> (Pair b) = Pair $ do
+        a
+        UB.appendChar7 ','
+        b
+
 instance Monoid ObjectBuilder where
     {-# INLINE mempty #-}
     mempty = NoPair
 
     {-# INLINE mappend #-}
-    mappend NoPair a = a
-    mappend a NoPair = a
-    mappend (Pair a) (Pair b) = Pair $ do 
-        a
-        UB.appendChar7 ','
-        b
+    mappend = (<>)
 
 instance ToJson ObjectBuilder where
     {-# INLINE toJson #-}
