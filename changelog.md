@@ -1,10 +1,14 @@
-0.2.4.6
+0.2.4.7
 
 * Remove any dependencies on C++
 
+0.2.4.6
+
+* Fix package compilation on GHC 7.8 and 7.10.  (Thanks Xia Li-yao!)
+
 0.2.4.5
 
-* Add Semigroup instance for ObjectBuilder
+* Add Semigroup instance for ObjectBuilder.  (Thanks Dan Fithian!)
 
 0.2.4.4
 
