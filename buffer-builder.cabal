@@ -70,10 +70,9 @@ library
   --ghc-options: -ddump-ds -ddump-simpl -ddump-stg -ddump-opt-cmm -ddump-asm -ddump-to-file
 
   hs-source-dirs: src
-  c-sources: cbits/buffer.cpp cbits/branchlut.cpp
+  c-sources: cbits/buffer.c cbits/branchlut.c
   install-includes: cbits/branchlut.h
-  cc-options: -O2 -Wall
-  extra-libraries: stdc++
+  cc-options: -O2 -Wall -Werror -std=c99
 
 test-suite tests
   type: exitcode-stdio-1.0
