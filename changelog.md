@@ -1,3 +1,7 @@
+0.2.4.6
+
+* Remove any dependencies on C++
+
 0.2.4.5
 
 * Add Semigroup instance for ObjectBuilder
