@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, MagicHash, BangPatterns, RecordWildCards, DeriveDataTypeable #-}
+{-# LANGUAGE CPP, OverloadedStrings, MagicHash, BangPatterns, RecordWildCards, DeriveDataTypeable #-}
 
 {-|
 A library for efficiently building up a buffer of data.  When given data
@@ -350,9 +350,15 @@ appendEscapedJsonLiteral addr =
 
 appendEscapedJsonText :: Text -> BufferBuilder ()
 appendEscapedJsonText !(Text arr ofs len) =
+#if MIN_VERSION_text(2,0,0)
+    let ByteArray byteArray = arr
+    in withHandle $ \h ->
+        bw_append_json_escaped h len (Ptr (byteArrayContents# byteArray) `plusPtr` ofs)
+#else
     let byteArray = aBA arr
     in withHandle $ \h ->
         bw_append_json_escaped_utf16 h len (Ptr (byteArrayContents# byteArray) `plusPtr` (2 * ofs))
+#endif
 {-# INLINE appendEscapedJsonText #-}
 
 -- | Append a percent-encoded ByteString.  All characters except for
