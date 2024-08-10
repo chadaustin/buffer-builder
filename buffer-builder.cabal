@@ -90,6 +90,7 @@ test-suite tests
                , bytestring
                , attoparsec
                , aeson
+               , attoparsec-aeson
 
 benchmark bench
   type: exitcode-stdio-1.0
