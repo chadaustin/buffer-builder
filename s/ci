@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+cd "${BASH_SOURCE%/*}"/..
+
+stack test
+stack test --snapshot lts-22.43
+stack test --snapshot lts-23.0
+stack test --snapshot lts-23.1
+stack test --snapshot lts-23.2
+stack test --snapshot lts-23.3
+
