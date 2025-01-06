@@ -2,10 +2,11 @@
 set -e
 cd "${BASH_SOURCE%/*}"/..
 
+echo "default snapshot"
 stack test
-stack test --snapshot lts-22.43
-stack test --snapshot lts-23.0
-stack test --snapshot lts-23.1
-stack test --snapshot lts-23.2
-stack test --snapshot lts-23.3
+
+for snapshot in 22.43 23.0 23.1 23.2 23.3; do
+    echo "snapshot lts-$snapshot"
+    stack test --snapshot "lts-$snapshot"
+done
 

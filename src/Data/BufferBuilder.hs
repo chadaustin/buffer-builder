@@ -70,7 +70,12 @@ import Data.Typeable (Typeable)
 
 import Data.Text () -- Show
 import Data.Text.Internal (Text (..))
+
+#if MIN_VERSION_text(2,1,0)
+import Data.Array.Byte (ByteArray(..))
+#else
 import Data.Text.Array (Array (..))
+#endif
 
 data Handle'
 type Handle = Ptr Handle'
