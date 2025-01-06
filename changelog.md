@@ -1,3 +1,7 @@
+0.2.4.9
+
+* Support text-2.1
+
 0.2.4.8
 
 * Support text-2.0
